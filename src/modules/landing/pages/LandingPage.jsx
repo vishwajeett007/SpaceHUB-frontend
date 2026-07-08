@@ -471,8 +471,8 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           <RevealOnScroll className="order-2 lg:order-1">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">Join your workspace</h2>
             <p className="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6">Step Into Your Workspace</p>
-            <div className="bg-zinc-400 p-4 sm:p-6 rounded-lg shadow-md">
-              <p className="text-gray-900 text-sm sm:text-base">
+            <div className="bg-zinc-200 p-4 sm:p-6 rounded-lg shadow-md">
+              <p className="text-black text-sm sm:text-base">
                 SPACEHUB begins with your own workspace — a dedicated digital environment where you and your team can collaborate seamlessly. Create your SPACEHUB, invite your members, and shape how your team communicates, shares files, and achieves goals together.
               </p>
             </div>
@@ -503,7 +503,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">Join the buzz!</h2>
             <p className="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6">Where Conversations Come Alive</p>
             <div className="bg-zinc-400 p-4 sm:p-6 rounded-lg shadow-md">
-              <p className="text-gray-900 text-sm sm:text-base">
+              <p className="text-white text-sm sm:text-base">
                 Every great idea starts with a conversation. Inside SPACEHUB, chat rooms and direct messages let your team exchange thoughts instantly and organize discussions by projects or topics.
               </p>
             </div>
@@ -525,8 +525,8 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           <RevealOnScroll className="order-2 lg:order-1">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">Collaborate & Grow</h2>
             <p className="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6">Share. Build. Create Together.</p>
-            <div className="bg-zinc-400 p-4 sm:p-6 rounded-lg shadow-md">
-              <p className="text-gray-900 text-sm sm:text-base">
+            <div className="bg-zinc-200 p-4 sm:p-6 rounded-lg shadow-md">
+              <p className="text-black text-sm sm:text-base">
                 SPACEHUB empowers your team to collaborate effortlessly. Share files, voice ideas in real-time, and manage tasks — all within one connected platform. As your team contributes, your SPACEHUB expands — representing progress, innovation, and teamwork in motion.
               </p>
             </div>

@@ -44,6 +44,102 @@ const RevealOnScroll = ({ children, className = '' }) => {
   );
 };
 
+const ScrollStretchedBrandText = () => {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) return;
+
+    let targetScaleY = 0;
+    let currentScaleY = 0;
+    let targetTranslateY = 80;
+    let currentTranslateY = 80;
+    let rAFId = null;
+    let isRunning = false;
+
+    const animate = () => {
+      const diffScaleY = targetScaleY - currentScaleY;
+      const diffTranslateY = targetTranslateY - currentTranslateY;
+
+      if (Math.abs(diffScaleY) < 0.001 && Math.abs(diffTranslateY) < 0.05) {
+        currentScaleY = targetScaleY;
+        currentTranslateY = targetTranslateY;
+        text.style.transform = `translateY(${currentTranslateY}px) scaleY(${currentScaleY})`;
+        isRunning = false;
+        return;
+      }
+
+      currentScaleY += diffScaleY * 0.15; // Smooth 0.15 ease factor for premium momentum
+      currentTranslateY += diffTranslateY * 0.15; // Smooth ease-out for translation
+      text.style.transform = `translateY(${currentTranslateY}px) scaleY(${currentScaleY})`;
+
+      rAFId = requestAnimationFrame(animate);
+    };
+
+    const handleScroll = () => {
+      const rect = container.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const containerTop = rect.top + window.scrollY;
+      const containerHeight = rect.height;
+      const maxScroll = document.documentElement.scrollHeight - viewportHeight;
+
+      // Start stretching exactly when the container becomes fully visible (bottom enters viewport)
+      const startScroll = containerTop + containerHeight - viewportHeight;
+      // Complete stretching when the scroll hits the absolute bottom of the page
+      const endScroll = maxScroll;
+
+      const currentScroll = window.scrollY;
+      let progress = 0;
+      if (endScroll > startScroll) {
+        progress = (currentScroll - startScroll) / (endScroll - startScroll);
+        progress = Math.max(0, Math.min(1, progress));
+      } else {
+        progress = 1;
+      }
+
+      targetScaleY = progress * 1.85;
+      targetTranslateY = (1 - progress) * 80;
+
+      if (!isRunning) {
+        isRunning = true;
+        rAFId = requestAnimationFrame(animate);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+
+    // Call once to set initial scale
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+      if (rAFId) {
+        cancelAnimationFrame(rAFId);
+      }
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="max-w-full text-center py-10 md:pt-65 overflow-hidden">
+      <h2
+        ref={textRef}
+        style={{
+          transform: 'translateY(80px) scaleY(0)',
+          transformOrigin: 'bottom center',
+        }}
+        className="text-[16vw] md:text-[20vw] font-black tracking-[-0.08em] uppercase leading-[0.7] text-[#1E2022] select-none font-sans inline-block w-full"
+      >
+        SPACEHUB
+      </h2>
+    </div>
+  );
+};
+
 const LandingPage = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -67,7 +163,7 @@ const LandingPage = () => {
       scrollToSection(section);
     }
   };
-  
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
@@ -177,13 +273,12 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </button>
           <span className="text-lg sm:text-xl font-bold text-gray-800">SPACEHUB</span>
         </div>
-        
+
         {/* Mobile Hamburger Menu Button */}
         <button
           onClick={() => !isMenuOpen && setIsMenuOpen(true)}
-          className={`md:hidden p-2 text-gray-700 hover:text-gray-900 transition-colors ${
-            isMenuOpen ? 'invisible pointer-events-none' : ''
-          }`}
+          className={`md:hidden p-2 text-gray-700 hover:text-gray-900 transition-colors ${isMenuOpen ? 'invisible pointer-events-none' : ''
+            }`}
           aria-label="Open menu"
           disabled={isMenuOpen}
         >
@@ -191,7 +286,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        
+
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-4 lg:space-x-10">
           {/* <a href="#Features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</a> */}
@@ -206,7 +301,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       {/* Mobile Hamburger Menu */}
       {isMenuOpen && (
         <>
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMenuOpen(false)}
           />
@@ -389,55 +484,101 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
         </div>
       </section>
-                    <hr/>
       {/* FOOTER */}
-      <footer id="Contact" className="bg-gray-100 py-12 sm:py-16">
-        <div className="max-w-[86rem] mx-auto px-4 sm:px-6">
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-            <RevealOnScroll>
-              <h3 className="sm:text-2xl text-5xl font-bold text-zinc-800 mb-3 sm:mb-4">Get the latest buzz!</h3>
-              <p className="text-zinc-800 mb-4 sm:mb-6 sm:text-md text-lg">
-                Stay updated with community stories, new features, and product updates.
-              </p>
-              <form onSubmit={handleEmailSubmit} className="relative">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-2 sm:py-3 pr-28 sm:pr-32 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="absolute right-1 top-1 bottom-1 bg-gray-600 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-md font-semibold transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm sm:text-base"
-                >
-                  {isSubmitting ? 'Sending...' : 'Subscribe'}
-                </button>
-              </form>
-              {submitMessage && (
-                <p className={`mt-3 text-sm ${submitMessage.includes('Thank you') ? 'text-green-600' : 'text-red-600'}`}>
-                  {submitMessage}
+      <footer id="Contact" className="bg-[#F8F9FA] pt-8 text-gray-900 border-t border-gray-200/50">
+        <div className="max-w-full mx-auto">
+          <RevealOnScroll>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8 px-4 sm:px-6 lg:px-8">
+
+              {/* Stay in the loop */}
+              <div className="md:col-span-5 flex flex-col space-y-4">
+                <h3 className="text-xl font-bold text-[#1E2022]">Stay in the loop!</h3>
+                <p className="text-sm text-gray-600 max-w-sm leading-relaxed">
+                  Get the latest updates, features, and community stories straight to your inbox.
                 </p>
-              )}
-            </RevealOnScroll>
-
-            <RevealOnScroll className="lg:absolute right-30">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Quick links</h3>
-              <div className="space-y-2">
-                <a href="#Home" className="block text-gray-600 hover:text-gray-900 text-sm sm:text-base transition-colors">Home</a>
-                <a href="#About" className="block text-gray-600 hover:text-gray-900 text-sm sm:text-base transition-colors">About</a>
-                {/* <a href="#Features" className="block text-gray-600 hover:text-gray-900 text-sm sm:text-base transition-colors">Features</a> */}
-                <a href="#Contact" className="block text-gray-600 hover:text-gray-900 text-sm sm:text-base transition-colors">Contact</a>
+                <form onSubmit={handleEmailSubmit} className="flex flex-col sm:flex-row gap-3 w-full max-w-md pt-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="flex-1 px-4 py-3 bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 text-gray-900 placeholder-gray-400 text-sm transition-all"
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-3 bg-[#1E2022] hover:bg-black text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Sending...' : 'Subscribe'}
+                  </button>
+                </form>
+                {submitMessage && (
+                  <p className={`text-sm ${submitMessage.includes('Thank you') ? 'text-green-600' : 'text-red-600'}`}>
+                    {submitMessage}
+                  </p>
+                )}
               </div>
-            </RevealOnScroll>
-          </div>
 
-          <RevealOnScroll className="mt-8 pt-6">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <img src={logo} alt="SpaceHUB logo" className="w-18 h-18 mb-2" loading="lazy" />
-              <span className="text-3xl font-bold text-gray-700">SPACEHUB</span>
+              {/* Quick Links */}
+              <div className="md:col-span-3 md:col-start-7 flex flex-col space-y-4">
+                <h3 className="text-base font-bold text-[#1E2022]">Quick links</h3>
+                <ul className="space-y-3">
+                  <li>
+                    <a href="#Home" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Home</a>
+                  </li>
+                  <li>
+                    <a href="#About" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">About</a>
+                  </li>
+                  <li>
+                    <a href="#Contact" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Contact</a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Contact Us */}
+              <div className="md:col-span-3 flex flex-col space-y-4">
+                <h3 className="text-base font-bold text-[#1E2022]">Contact us</h3>
+                <ul className="space-y-4">
+                  <li className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                    </svg>
+                    <a href="mailto:vishwajeetrajput282@gmail.com" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">hello@spacehub.com</a>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.387a12.035 12.035 0 01-7.108-7.108c-.157-.44.009-.927.387-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25Z" />
+                    </svg>
+                    <a href="tel:+917037123786" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">+91 7037123786</a>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0Z" />
+                    </svg>
+                    <span className="text-sm text-gray-600">Ghaziabad, Uttar Pradesh, INDIA</span>
+                  </li>
+                </ul>
+              </div>
+
+            </div>
+          </RevealOnScroll>
+
+
+          {/* Huge Spacehub brand text */}
+          <ScrollStretchedBrandText />
+
+          {/* Divider */}
+          <div className="px-4 sm:px-6 lg:px-8">
+            <hr className="border-t border-gray-200/80" />
+          </div>
+          {/* Bottom Copyright & Terms */}
+          <RevealOnScroll className="flex flex-col sm:flex-row items-center justify-between text-[10px] sm:text-xs font-semibold tracking-tight text-gray-500 uppercase py-5 px-4 sm:px-6 lg:px-8">
+            <p>© 2025 SPACEHUB. ALL RIGHTS RESERVED.</p>
+            <div className="flex gap-6">
+              <a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-gray-900 transition-colors">Terms of Service</a>
             </div>
           </RevealOnScroll>
         </div>

@@ -45,20 +45,32 @@ const RevealOnScroll = ({ children, className = '' }) => {
 };
 
 const ScrollStretchedBrandText = () => {
+  const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const textRef = useRef(null);
 
   useEffect(() => {
+    const wrapper = wrapperRef.current;
     const container = containerRef.current;
     const text = textRef.current;
-    if (!container || !text) return;
+    if (!wrapper || !container || !text) return;
 
     let targetScaleY = 0;
     let currentScaleY = 0;
-    let targetTranslateY = 80;
-    let currentTranslateY = 80;
+    let targetTranslateY = -80;
+    let currentTranslateY = -80;
     let rAFId = null;
     let isRunning = false;
+
+    const updateHeights = () => {
+      const unscaledHeight = text.offsetHeight;
+      const computedStyle = window.getComputedStyle(container);
+      const padding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+
+      wrapper.style.height = `${unscaledHeight * 2 + padding}px`;
+
+      container.style.height = `${unscaledHeight * Math.max(1, currentScaleY) + padding}px`;
+    };
 
     const animate = () => {
       const diffScaleY = targetScaleY - currentScaleY;
@@ -68,30 +80,39 @@ const ScrollStretchedBrandText = () => {
         currentScaleY = targetScaleY;
         currentTranslateY = targetTranslateY;
         text.style.transform = `translateY(${currentTranslateY}px) scaleY(${currentScaleY})`;
+
+        const unscaledHeight = text.offsetHeight;
+        const computedStyle = window.getComputedStyle(container);
+        const padding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+        container.style.height = `${unscaledHeight * Math.max(1, currentScaleY) + padding}px`;
+
         isRunning = false;
         return;
       }
 
-      currentScaleY += diffScaleY * 0.15; // Smooth 0.15 ease factor for premium momentum
-      currentTranslateY += diffTranslateY * 0.15; // Smooth ease-out for translation
+      currentScaleY += diffScaleY * 1;
+      currentTranslateY += diffTranslateY * 1;
       text.style.transform = `translateY(${currentTranslateY}px) scaleY(${currentScaleY})`;
+
+      const unscaledHeight = text.offsetHeight;
+      const computedStyle = window.getComputedStyle(container);
+      const padding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+      container.style.height = `${unscaledHeight * Math.max(1, currentScaleY) + padding}px`;
 
       rAFId = requestAnimationFrame(animate);
     };
 
     const handleScroll = () => {
-      const rect = container.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
-      const containerTop = rect.top + window.scrollY;
-      const containerHeight = rect.height;
+      const currentScroll = window.scrollY;
+
       const maxScroll = document.documentElement.scrollHeight - viewportHeight;
 
-      // Start stretching exactly when the container becomes fully visible (bottom enters viewport)
-      const startScroll = containerTop + containerHeight - viewportHeight;
-      // Complete stretching when the scroll hits the absolute bottom of the page
+      const rect = wrapper.getBoundingClientRect();
+      const wrapperTop = rect.top + currentScroll;
+      const startScroll = wrapperTop - viewportHeight + 1;
       const endScroll = maxScroll;
 
-      const currentScroll = window.scrollY;
       let progress = 0;
       if (endScroll > startScroll) {
         progress = (currentScroll - startScroll) / (endScroll - startScroll);
@@ -100,8 +121,11 @@ const ScrollStretchedBrandText = () => {
         progress = 1;
       }
 
-      targetScaleY = progress * 1.85;
-      targetTranslateY = (1 - progress) * 80;
+      // Apply smoothstep easing to start/end transitions smoothly
+      const easedProgress = progress * progress * (3 - 2 * progress);
+
+      targetScaleY = easedProgress * 1.85;
+      targetTranslateY = (1 - easedProgress) * -80;
 
       if (!isRunning) {
         isRunning = true;
@@ -109,15 +133,20 @@ const ScrollStretchedBrandText = () => {
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll, { passive: true });
+    const handleResize = () => {
+      updateHeights();
+      handleScroll();
+    };
 
-    // Call once to set initial scale
+    updateHeights();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+
     handleScroll();
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
+      window.removeEventListener('resize', handleResize);
       if (rAFId) {
         cancelAnimationFrame(rAFId);
       }
@@ -125,20 +154,30 @@ const ScrollStretchedBrandText = () => {
   }, []);
 
   return (
-    <div ref={containerRef} className="max-w-full text-center py-10 md:pt-65 overflow-hidden">
-      <h2
-        ref={textRef}
-        style={{
-          transform: 'translateY(80px) scaleY(0)',
-          transformOrigin: 'bottom center',
-        }}
-        className="text-[16vw] md:text-[20vw] font-black tracking-[-0.08em] uppercase leading-[0.7] text-[#1E2022] select-none font-sans inline-block w-full"
+    <div
+      ref={wrapperRef}
+      className="max-w-full relative w-full overflow-hidden"
+    >
+      <div
+        ref={containerRef}
+        className="absolute top-0 left-0 w-full flex flex-col justify-start items-center pt-10 pb-0 text-center"
       >
-        SPACEHUB
-      </h2>
+        <h2
+          ref={textRef}
+          style={{
+            transform: 'translateY(-80px) scaleY(0)',
+            transformOrigin: 'top center',
+          }}
+          className="text-[16vw] md:text-[20vw] font-black tracking-[-0.08em] uppercase leading-[0.55] text-[#1E2022] select-none font-sans inline-block w-full"
+        >
+          SPACEHUB
+        </h2>
+      </div>
     </div>
   );
 };
+
+
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -355,45 +394,59 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       {/* HERO SECTION / FEATURES */}
       <section
         id="Home"
-        className="w-full  min-h-[37rem] sm:min-h-screen py-8 sm:py-12 lg:py-16 relative px-4 sm:px-6"
+        className="w-full min-h-[37rem] sm:min-h-screen py-8 sm:py-12 lg:py-16 relative px-4 sm:px-6"
         style={{
-          backgroundImage: `url(${bgPattern})`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cline x1='0' y1='40' x2='80' y2='40' stroke='%23D4D4D8' stroke-width='1' stroke-dasharray='4 4' /%3E%3Cline x1='40' y1='0' x2='40' y2='80' stroke='%23D4D4D8' stroke-width='1' stroke-dasharray='4 4' /%3E%3Cpath d='M37 40 h6 M40 37 v6' stroke='%23A1A1AA' stroke-width='1' /%3E%3C/svg%3E")`,
           backgroundRepeat: 'repeat',
-          backgroundSize: 'auto',
+          backgroundSize: '80px 80px',
         }}
       >
-        <RevealOnScroll className="text-center relative z-10 max-w-5xl mx-auto mt-10">
-          <div className="inline-block relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-blue-600 rounded-md p-0.5">
-              <div className="bg-red-100 rounded-md h-full w-full"></div>
+        <RevealOnScroll className="text-center relative z-10 max-w-5xl mx-auto">
+          <div className="relative bg-transparent p-8 sm:px-12 md:px-16 lg:px-26 max-w-5xl mx-auto mt-10">
+            {/* Border lines extending past corners
+            <div className="absolute top-0 -left-6 -right-6 h-[2px] bg-purple-600/80"></div>
+            <div className="absolute bottom-0 -left-6 -right-6 h-[2px] bg-purple-600/80"></div>
+            <div className="absolute left-0 -top-6 -bottom-6 w-[2px] bg-purple-600/80"></div>
+            <div className="absolute right-0 -top-6 -bottom-6 w-[2px] bg-purple-600/80"></div> */}
+
+            {/* Corner square markers
+            <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div>
+            <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div>
+            <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div>
+            <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div> */}
+
+            <div className="inline-block relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-blue-600 rounded-md p-0.5">
+                <div className="bg-red-100 rounded-md h-full w-full"></div>
+              </div>
+
+              <div className="relative bg-red-100 rounded-md px-4 sm:px-6 py-2 m-1">
+                <p className="text-gray-800 font-medium text-sm sm:text-base">Connect your team and collaborate seamlessly</p>
+              </div>
             </div>
 
-            <div className="relative bg-red-100 rounded-md px-4 sm:px-6 py-2 m-1">
-              <p className="text-gray-800 font-medium text-sm sm:text-base">Connect your team and collaborate seamlessly</p>
-            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-[500] text-gray-900 mb-4 sm:mb-6 leading-normal mt-10">
+              A unified workspace for teams to{' '}
+              <span className="bg-gradient-to-r from-orange-400 to-purple-600 bg-clip-text text-transparent">
+                chat, share, and build
+              </span>{' '}
+              together
+            </h1>
+
+            <p className="text-base font-[500] sm:text-lg text-gray-700 max-w-4xl mx-auto px-4">
+              Work smarter together with organized chat rooms, voice spaces, and shared workspaces.
+            </p>
+            <p className="text-base font-[500] sm:text-lg text-gray-700 mb-6 sm:mb-8 max-w-4xl mx-auto px-4">
+              Bring your team, projects, and files together under one connected platform.
+            </p>
+
+            <Link
+              to="/signup"
+              className="inline-block bg-gradient-to-r from-red-500 to-blue-600 text-white px-3 sm:px-5 py-5 rounded-md font-semibold text-base sm:text-lg transition-all"
+            >
+              Get started
+            </Link>
           </div>
-
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-[500] text-gray-900 mb-4 sm:mb-6 leading-normal mt-10">
-            A unified workspace for teams to{' '}
-            <span className="bg-gradient-to-r from-orange-400 to-purple-600 bg-clip-text text-transparent">
-              chat, share, and build
-            </span>{' '}
-            together
-          </h1>
-
-          <p className="text-base font-[500] sm:text-lg text-gray-700 max-w-4xl mx-auto px-4">
-            Work smarter together with organized chat rooms, voice spaces, and shared workspaces.
-          </p>
-          <p className="text-base font-[500] sm:text-lg text-gray-700 mb-6 sm:mb-8 max-w-4xl mx-auto px-4">
-            Bring your team, projects, and files together under one connected platform.
-          </p>
-
-          <Link
-            to="/signup"
-            className="inline-block bg-gradient-to-r from-red-500 to-blue-600 text-white px-3 sm:px-5 py-5 rounded-md font-semibold text-base sm:text-lg transition-all"
-          >
-            Get started
-          </Link>
         </RevealOnScroll>
       </section>
 

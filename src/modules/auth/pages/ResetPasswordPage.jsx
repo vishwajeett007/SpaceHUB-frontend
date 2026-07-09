@@ -49,11 +49,7 @@ const ResetPasswordPage = () => {
           login(userObj, token);
           try {
             sessionStorage.setItem('lastIdentifier', identifier);
-            if (identifier?.startsWith('+91')) {
-              sessionStorage.setItem('lastPhone', identifier);
-            } else {
-              sessionStorage.setItem('lastEmail', identifier);
-            }
+            sessionStorage.setItem('lastEmail', identifier);
           } catch {}
           window.dispatchEvent(new CustomEvent('toast', {
             detail: { message: 'Password reset successfully!', type: 'success' }

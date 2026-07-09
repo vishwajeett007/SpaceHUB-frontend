@@ -19,16 +19,9 @@ const ForgotPasswordPage = () => {
 
   const hasEmoji = (value) => /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/u.test(value || '');
   const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !hasEmoji(value);
-  const normalizePhone = (value) => {
-    const digits = (value || '').replace(/\D/g, '');
-    if (digits.length === 10 && /^[6-9]/.test(digits)) return `+91${digits}`;
-    if (/^\+91[6-9]\d{9}$/.test(value || '')) return value;
-    return null;
-  };
   const validateIdentifier = (value) => {
     if (!value) return false;
-    if (isValidEmail(value)) return true;
-    return !!normalizePhone(value);
+    return isValidEmail(value);
   };
 
   const isMobile = () => {
@@ -67,17 +60,16 @@ const ForgotPasswordPage = () => {
     setError('');
     if (step === 'email') {
       const emailLike = isValidEmail(identifier);
-      const phoneLike = normalizePhone(identifier);
-      if (!emailLike && !phoneLike) {
+      if (!emailLike) {
         setIdentifierError(true);
         if (isMobile()) {
           window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: 'Enter a valid email or Indian mobile number (+91XXXXXXXXXX).', type: 'error' }
+            detail: { message: 'Enter a valid email address.', type: 'error' }
           }));
         }
         return;
       }
-      const identifierToSend = emailLike ? identifier.trim() : phoneLike;
+      const identifierToSend = identifier.trim();
       setLoading(true);
       requestForgotPassword(identifierToSend)
         .then((res) => {
@@ -194,7 +186,7 @@ const ForgotPasswordPage = () => {
             {step === 'email' ? (
               <>
                 <h3 className="text-lg lg:text-[1.75rem] font-semibold text-default mb-0.5 lg:mb-1">Verify your account</h3>
-                <p className="text-muted text-xs lg:text-[1.25rem] font-normal">Enter your email or mobile to receive OTP</p>
+                <p className="text-muted text-xs lg:text-[1.25rem] font-normal">Enter your email to receive OTP</p>
               </>
             ) : (
               <>
@@ -208,7 +200,7 @@ const ForgotPasswordPage = () => {
             {step === 'email' ? (
               <div>
                 <label htmlFor="email" className="flex items-center gap-2 text-base lg:text-[1.25rem] font-medium text-default mb-1 lg:mb-2 text-left">
-                  Email or Mobile
+                  Email address
                 </label>
                 <div className="relative">
                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -226,12 +218,12 @@ const ForgotPasswordPage = () => {
                     value={identifier}
                     onChange={handleEmailChange}
                     className={`w-full pl-10 pr-4 py-2 lg:py-3 text-sm lg:text-base border-2 rounded-md ring-primary transition-colors bg-gray-50 placeholder-[#ADADAD] h-[2.2rem] lg:h-[2.75rem] max-w-[30.875rem] ${identifierError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
-                    placeholder="Enter email or +91XXXXXXXXXX"
+                    placeholder="Enter your email"
                     />
                   </div>
                   {identifierError && (
                     <p className="hidden lg:block mt-1 text-sm text-red-500">
-                      Enter a valid email or Indian mobile number (+91XXXXXXXXXX).
+                      Enter a valid email address.
                     </p>
                   )}
                 </div>

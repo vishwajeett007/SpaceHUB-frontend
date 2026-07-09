@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://codewithketan.me/api/v1/';
+export const BASE_URL = import.meta.env.VITE_BASE_URL;
 export async function registerUser(payload) {
   const response = await fetch(`${BASE_URL}registration`, {
     method: 'POST',
@@ -17,24 +17,19 @@ export async function loginUser(payload) {
     body: JSON.stringify(payload)
   });
   const data = await handleJson(response);
-  // console.log('data', data);
 
   const token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
-  // console.log('token', token);
   if (token) {
     sessionStorage.setItem('accessToken', token);
-    // Check for email in response (can be at data.email or data.data.email)
     const responseEmail = data?.email || data?.data?.email;
-    
+
     if (data.user || data.data?.user) {
       const userObj = data.user || data.data?.user;
-      // If email is in the response (e.g., when logging in with phone number), ensure it's saved
       if (responseEmail && !userObj.email) {
         userObj.email = String(responseEmail);
       }
       sessionStorage.setItem('userData', JSON.stringify(userObj));
     } else if (responseEmail) {
-      // If no user object but email exists in response, save it to sessionStorage
       const userData = { email: String(responseEmail) };
       sessionStorage.setItem('userData', JSON.stringify(userData));
     }
@@ -67,7 +62,7 @@ export async function validateOtp(payload) {
       }
     }
   }
-  
+
   const response = await fetch(`${BASE_URL}validateforgototp`, {
     method: 'POST',
     credentials: 'include',
@@ -96,7 +91,7 @@ export async function resetPassword(payload) {
   }
 
   return data;
-} 
+}
 
 export async function resendRegisterOtp(email, registrationToken) {
   const response = await fetch(`${BASE_URL}resendotp`, {
@@ -113,7 +108,7 @@ export async function resendForgotOtp(forgotToken) {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({tempToken: forgotToken })
+    body: JSON.stringify({ tempToken: forgotToken })
   });
   return handleJson(response);
 }
@@ -227,9 +222,10 @@ export async function getAllCommunities() {
   return data;
 }
 
-export async function getMyCommunities(requesterEmail) {
-  const response = await authenticatedFetch(`${BASE_URL}community/my-communities?requesterEmail=${encodeURIComponent(requesterEmail)}`, {
-    method: 'GET'
+export async function getMyCommunities() {
+  const response = await authenticatedFetch(`${BASE_URL}community/my-communities`, {
+    method: 'GET',
+    credentials: 'include'
   });
   let data;
   try {
@@ -253,7 +249,7 @@ export async function getMyCommunities(requesterEmail) {
 }
 
 export async function getAllLocalGroups(requesterEmail) {
-  const url = requesterEmail 
+  const url = requesterEmail
     ? `${BASE_URL}local-group/all?requesterEmail=${encodeURIComponent(requesterEmail)}`
     : `${BASE_URL}local-group/all`;
   const response = await authenticatedFetch(url, {
@@ -519,7 +515,7 @@ export async function joinCommunity(communityName, userEmail) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       communityName: communityName,
       userEmail: userEmail
     })
@@ -742,18 +738,18 @@ export async function uploadProfileImage({ imageFile, email }) {
 export async function uploadFileAndGetUrl(file) {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   const response = await authenticatedFetch(`${BASE_URL}files/upload-and-get-url`, {
     method: 'POST',
     body: formData
   });
-  
+
   const data = await handleJson(response);
-  
+
   if (!response.ok) {
     throw new Error(data?.message || data?.error || 'Failed to upload file');
   }
-  
+
   // Return both fileKey and fileUrl from the response
   return {
     fileKey: data?.data?.fileKey || data?.fileKey || null,
@@ -798,7 +794,7 @@ export async function updateProfile({ email, currentPassword, newPassword, newEm
 }
 export async function removeCommunityMember(communityId, userEmail, requesterEmail) {
   const url = `${BASE_URL}community/removeMember`;
-  const payload = { communityId, userEmail, requesterEmail };  
+  const payload = { communityId, userEmail, requesterEmail };
   try {
     const response = await authenticatedFetch(url, {
       method: 'POST',
@@ -807,7 +803,7 @@ export async function removeCommunityMember(communityId, userEmail, requesterEma
       },
       body: JSON.stringify(payload)
     });
-  }catch (error) {
+  } catch (error) {
     console.error('removeCommunityMember API error:', error);
     throw error;
   }
@@ -863,7 +859,7 @@ export async function createNewChatroom(roomCode, name) {
   const formData = new FormData();
   formData.append('roomCode', roomCode);
   formData.append('name', name);
-  
+
   const response = await authenticatedFetch(`${BASE_URL}new-chatroom/create`, {
     method: 'POST',
     body: formData
@@ -888,7 +884,7 @@ export async function createDefaultAnnouncementGroup(communityId, requesterEmail
     });
 
     const groupData = await groupResponse.json();
-    
+
     if (!groupResponse.ok) {
       throw new Error(groupData.message || 'Failed to create Announcement group');
     }
@@ -902,7 +898,7 @@ export async function createDefaultAnnouncementGroup(communityId, requesterEmail
 
     // Step 2: Create the general chatroom in the Announcement group
     const chatroomResponse = await createNewChatroom(roomCode, 'general');
-    
+
     return {
       group: announcementGroup,
       chatroom: chatroomResponse
@@ -942,7 +938,7 @@ export async function createVoiceRoom(chatRoomId, roomName, createdBy) {
   params.set('chatRoomId', chatRoomId);
   params.set('roomName', roomName);
   params.set('createdBy', createdBy);
-  
+
   const response = await authenticatedFetch(`${BASE_URL}voice-room/create?${params.toString()}`, {
     method: 'POST'
   });
@@ -955,7 +951,7 @@ export async function deleteVoiceRoom(chatRoomId, roomName, requester) {
   params.set('chatRoomId', chatRoomId);
   params.set('roomName', roomName);
   params.set('requester', requester);
-  
+
   const response = await authenticatedFetch(`${BASE_URL}voice-room/delete?${params.toString()}`, {
     method: 'DELETE'
   });
@@ -967,7 +963,7 @@ export async function joinVoiceRoom(janusRoomId, displayName) {
   const params = new URLSearchParams();
   params.set('janusRoomId', janusRoomId);
   params.set('displayName', displayName);
-  
+
   const response = await authenticatedFetch(`${BASE_URL}voice-room/join?${params.toString()}`, {
     method: 'POST'
   });
@@ -993,7 +989,6 @@ async function handleJson(response) {
     data = null;
   }
   if (!response.ok) {
-    // Handle 429 Too Many Requests
     if (response.status === 429) {
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: 'Wait for some time to reload', type: 'error' }
@@ -1018,7 +1013,7 @@ export const getAuthHeaders = (isFormData = false) => {
 export const authenticatedFetch = async (url, options = {}) => {
   const isFormData = options.body instanceof FormData;
   const headers = getAuthHeaders(isFormData);
-  
+
   const response = await fetch(url, {
     ...options,
     credentials: 'include',
@@ -1027,20 +1022,20 @@ export const authenticatedFetch = async (url, options = {}) => {
       ...options.headers
     }
   });
-// console.log('response', response);
+  // console.log('response', response);
 
   if (response.status === 401) {
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('userData');
     window.location.href = '/login';
   }
-  
+
   // Handle 429 Too Many Requests
   if (response.status === 429) {
     window.dispatchEvent(new CustomEvent('toast', {
       detail: { message: 'Wait for some time to reload', type: 'error' }
     }));
   }
-  
+
   return response;
 };

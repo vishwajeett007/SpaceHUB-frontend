@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { BASE_URL } from '../../../shared/services/API';
 
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import bgPattern from '../../../assets/landing/bg 1.svg';
@@ -258,8 +259,9 @@ const LandingPage = () => {
     }
 
     setIsSubmitting(true);
+    const sendEmailUrl = BASE_URL ? `${BASE_URL}dashboard/send-email` : 'https://spacehub.monu14.me/api/v1/dashboard/send-email';
     try {
-      const response = await fetch('https://codewithketan.me/api/v1/dashboard/send-email', {
+      const response = await fetch(sendEmailUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {

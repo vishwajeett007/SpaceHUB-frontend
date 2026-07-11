@@ -1,9 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../../../shared/contexts/AuthContextContext';
-import { getCommunityMembers, joinRoom, joinVoiceRoom } from '../../../../shared/services/API';
+import { getCommunityMembers, joinRoom, joinVoiceRoom, BASE_URL } from '../../../../shared/services/API';
 import ChatRoom from '../chatRoom/Chatroom';
 import VoiceRoom from '../voiceRoom/VoiceRoom';
 import { useVoiceRoom } from '../../../../shared/hooks/useVoiceRoom';
+
+const getWsCommunityChatUrl = (wsRoomCode, userEmail) => {
+  if (!BASE_URL) {
+    return `wss://spacehub.monu14.me/chat?roomCode=${encodeURIComponent(wsRoomCode)}&email=${encodeURIComponent(userEmail)}`;
+  }
+  try {
+    const url = new URL(BASE_URL);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${url.host}/chat?roomCode=${encodeURIComponent(wsRoomCode)}&email=${encodeURIComponent(userEmail)}`;
+  } catch (e) {
+    console.error('Failed to parse BASE_URL for WebSocket:', e);
+    return `wss://spacehub.monu14.me/chat?roomCode=${encodeURIComponent(wsRoomCode)}&email=${encodeURIComponent(userEmail)}`;
+  }
+};
 
 const CommunityCenterPanel = ({ community, roomCode, onToggleRightPanel = null, onBack = null, isLocalGroup = false }) => {
   const { user } = useAuth();
@@ -282,7 +296,7 @@ const CommunityCenterPanel = ({ community, roomCode, onToggleRightPanel = null, 
       return;
     }
     
-    const wsUrl = `wss://codewithketan.me/chat?roomCode=${encodeURIComponent(wsRoomCode)}&email=${encodeURIComponent(userEmail)}`;
+    const wsUrl = getWsCommunityChatUrl(wsRoomCode, userEmail);
     
     // Only clear messages when switching to a different room
     if (currentWsRoomCodeRef.current !== wsRoomCode) {
@@ -581,7 +595,7 @@ const CommunityCenterPanel = ({ community, roomCode, onToggleRightPanel = null, 
           // Only reconnect if we're still supposed to be connected to this room
           if (userEmail && wsRoomCode && currentMode === 'chat' && currentWsRoomCodeRef.current === wsRoomCode && (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED)) {
             try {
-              const wsUrl = `wss://codewithketan.me/chat?roomCode=${encodeURIComponent(wsRoomCode)}&email=${encodeURIComponent(userEmail)}`;
+              const wsUrl = getWsCommunityChatUrl(wsRoomCode, userEmail);
               const newWs = new WebSocket(wsUrl);
               wsRef.current = newWs;
               currentWsRoomCodeRef.current = wsRoomCode;

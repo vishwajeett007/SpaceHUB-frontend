@@ -25,6 +25,20 @@ import {
 } from '../../../shared/store/slices/dashboardSlice';
 import { setSelectedFriend } from '../../../shared/store/slices/uiSlice';
 
+const getWsDirectChatUrl = (sender, receiver) => {
+  if (!BASE_URL) {
+    return `wss://spacehub.monu14.me/ws/direct-chat?senderEmail=${encodeURIComponent(sender)}&receiverEmail=${encodeURIComponent(receiver)}`;
+  }
+  try {
+    const url = new URL(BASE_URL);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${url.host}/ws/direct-chat?senderEmail=${encodeURIComponent(sender)}&receiverEmail=${encodeURIComponent(receiver)}`;
+  } catch (e) {
+    console.error('Failed to parse BASE_URL for WebSocket:', e);
+    return `wss://spacehub.monu14.me/ws/direct-chat?senderEmail=${encodeURIComponent(sender)}&receiverEmail=${encodeURIComponent(receiver)}`;
+  }
+};
+
 const DashboardMainSection = ({ selectedFriend, onOpenAddFriends, showRightSidebar }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -732,7 +746,7 @@ const DashboardMainSection = ({ selectedFriend, onOpenAddFriends, showRightSideb
               try {
                 console.log('Attempting to reconnect WebSocket for direct chat...');
                 setWsStatus('connecting');
-                const reconnectUrl = `wss://codewithketan.me/ws/direct-chat?senderEmail=${encodeURIComponent(currentUserEmail)}&receiverEmail=${encodeURIComponent(currentFriendEmail)}`;
+                const reconnectUrl = getWsDirectChatUrl(currentUserEmail, currentFriendEmail);
                 const newWs = new WebSocket(reconnectUrl);
                 wsRef.current = newWs;
                 setupWebSocketHandlers(newWs, friendName, friendAvatar, reconnectUrl, currentFriendEmail, currentUserEmail, null);
@@ -780,7 +794,7 @@ const DashboardMainSection = ({ selectedFriend, onOpenAddFriends, showRightSideb
       }
     }
 
-    const wsUrl = `wss://codewithketan.me/ws/direct-chat?senderEmail=${encodeURIComponent(userEmail)}&receiverEmail=${encodeURIComponent(friendEmail)}`;
+    const wsUrl = getWsDirectChatUrl(userEmail, friendEmail);
     // console.log('Creating new WebSocket connection:', wsUrl);
     
     let connectionTimeout = null;

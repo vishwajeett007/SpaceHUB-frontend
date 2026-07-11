@@ -1,3 +1,19 @@
+import { BASE_URL } from './API';
+
+const getWsUrl = (email) => {
+  if (!BASE_URL) {
+    return `wss://spacehub.monu14.me/notification?email=${encodeURIComponent(email)}`;
+  }
+  try {
+    const url = new URL(BASE_URL);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${url.host}/notification?email=${encodeURIComponent(email)}`;
+  } catch (e) {
+    console.error('Failed to parse BASE_URL for WebSocket:', e);
+    return `wss://spacehub.monu14.me/notification?email=${encodeURIComponent(email)}`;
+  }
+};
+
 class WebSocketService {
   constructor() {
     this.ws = null;
@@ -30,7 +46,7 @@ class WebSocketService {
     this.isConnecting = true;
 
     try {
-      const wsUrl = `wss://codewithketan.me/notification?email=${encodeURIComponent(email)}`;
+      const wsUrl = getWsUrl(email);
       console.log('WebSocket: Attempting to connect to', wsUrl);
       this.ws = new WebSocket(wsUrl);
 

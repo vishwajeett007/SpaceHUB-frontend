@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { BASE_URL } from '../services/API';
 
-const BASE_URL = 'https://codewithketan.me';
-const WS_URL = `${BASE_URL}/ws`;
+const getVoiceWsUrl = () => {
+  if (!BASE_URL) return 'https://spacehub.monu14.me/ws';
+  try {
+    const url = new URL(BASE_URL);
+    return `${url.origin}/ws`;
+  } catch (e) {
+    return 'https://spacehub.monu14.me/ws';
+  }
+};
+const WS_URL = getVoiceWsUrl();
 
 export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled = false, communityId = null) => {
   const [isConnected, setIsConnected] = useState(false);

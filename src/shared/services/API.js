@@ -55,25 +55,11 @@ export async function requestForgotPassword(email) {
 }
 
 export async function validateOtp(payload) {
-  let normalizedPayload = { ...payload };
-  if (payload.identifier) {
-    const identifier = payload.identifier.trim();
-    const digitsOnly = identifier.replace(/\D/g, '');
-    if (digitsOnly.length === 10 && /^[6-9]/.test(digitsOnly)) {
-      normalizedPayload.identifier = `+91${digitsOnly}`;
-    } else if (!identifier.includes('@') && !identifier.startsWith('+91')) {
-      const phoneMatch = identifier.match(/^(\+91)?([6-9]\d{9})$/);
-      if (phoneMatch) {
-        normalizedPayload.identifier = `+91${phoneMatch[2]}`;
-      }
-    }
-  }
-
   const response = await fetch(`${BASE_URL}validateforgototp`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(normalizedPayload)
+    body: JSON.stringify(payload)
   });
   return handleJson(response);
 }
@@ -1068,7 +1054,7 @@ export const getAuthHeaders = (isFormData = false) => {
   }
   return {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    // ...(token && { 'Authorization': `Bearer ${token}` })
+    ...(token && { 'Authorization': `Bearer ${token}` })
   };
 };
 

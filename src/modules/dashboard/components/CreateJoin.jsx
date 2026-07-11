@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { acceptCommunityInvite, joinLocalGroup } from '../../../shared/services/API';
+import { acceptCommunityInvite, acceptLocalGroupInvite, joinLocalGroup } from '../../../shared/services/API';
 
 const CreateJoin = ({ onBack, onSend, onSuccess }) => {
   const [inviteLink, setInviteLink] = useState('');
@@ -17,7 +17,8 @@ const CreateJoin = ({ onBack, onSend, onSuccess }) => {
       
       if (localGroupMatch) {
         const groupId = localGroupMatch[1];
-        return { type: 'localGroup', groupId };
+        const inviteCode = localGroupMatch[2];
+        return { type: 'localGroup', groupId, inviteCode };
       }
       const invitePattern = /\/invite\/([a-f0-9-]{36})\/([a-zA-Z0-9]+)/i;
       const match = trimmedLink.match(invitePattern);
@@ -66,9 +67,10 @@ const CreateJoin = ({ onBack, onSend, onSuccess }) => {
       let response;
       if (parsed.type === 'localGroup') {
         // Join local group
-        response = await joinLocalGroup({
+        response = await acceptLocalGroupInvite({
           groupId: parsed.groupId,
-          userEmail: userEmail
+          inviteCode: parsed.inviteCode,
+          acceptorEmail: userEmail
         });
       } else {
         // Join community

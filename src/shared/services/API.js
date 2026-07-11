@@ -732,13 +732,21 @@ export async function sendWelcomeEmail({ to, subject, message }) {
   return handleJson(response);
 }
 
-export async function uploadProfileImage({ imageFile, email }) {
+export async function uploadProfileImage({ imageFile }) {
   const formData = new FormData();
-  formData.append('image', imageFile);
-  if (email) {
-    formData.append('email', email);
-  }
-  const response = await authenticatedFetch(`${BASE_URL}dashboard/upload-profile-image`, {
+  formData.append('file', imageFile);
+  const response = await authenticatedFetch(`${BASE_URL}profile/avatar`, {
+    method: 'POST',
+    body: formData
+  });
+  return handleJson(response);
+}
+
+// Upload cover photo
+export async function uploadCoverPhoto({ imageFile }) {
+  const formData = new FormData();
+  formData.append('file', imageFile);
+  const response = await authenticatedFetch(`${BASE_URL}profile/cover`, {
     method: 'POST',
     body: formData
   });
@@ -782,21 +790,35 @@ export async function deleteAccount({ email, currentPassword }) {
 }
 
 export async function getProfileSummary(email) {
-  const response = await authenticatedFetch(`${BASE_URL}dashboard/profile-summary?email=${encodeURIComponent(email)}`, {
+  const response = await authenticatedFetch(`${BASE_URL}profile/getProfile`, {
     method: 'GET'
   });
-  return handleJson(response);
+  const data = await handleJson(response);
+  if (data && data.data) {
+    // Normalize new backend profile response keys to match what frontend UI expects
+    const profile = data.data;
+    const avatarUrl = profile.avatarPreviewUrl || profile.avatarUrl || null;
+    profile.avatarUrl = avatarUrl;
+    profile.profileImage = avatarUrl;
+  }
+  return data;
 }
 
-// Update profile (password and/or email)
-export async function updateProfile({ email, currentPassword, newPassword, newEmail }) {
-  const url = `${BASE_URL}profile/updateProfile?email=${encodeURIComponent(email)}`;
+// Update profile (password and/or user fields)
+export async function updateProfile({ currentPassword, newPassword, firstName, lastName, bio, dateOfBirth, username }) {
   const payload = {
     currentPassword,
     newPassword,
-    ...(newEmail && newEmail.trim() ? { newEmail: newEmail.trim() } : {})
+    firstName,
+    lastName,
+    bio,
+    dateOfBirth,
+    username
   };
-  const response = await authenticatedFetch(url, {
+  // remove undefined/null fields
+  Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+  const response = await authenticatedFetch(`${BASE_URL}profile/updateProfile`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -861,6 +883,18 @@ export async function joinLocalGroup({ groupId, userEmail }) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ groupId, userEmail })
+  });
+  return handleJson(response);
+}
+
+// Accept local group invite
+export async function acceptLocalGroupInvite({ groupId, inviteCode, acceptorEmail }) {
+  const response = await authenticatedFetch(`${BASE_URL}localgroup/invites/accept`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ groupId, inviteCode, acceptorEmail })
   });
   return handleJson(response);
 }
@@ -1034,7 +1068,7 @@ export const getAuthHeaders = (isFormData = false) => {
   }
   return {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(token && { 'Authorization': `Bearer ${token}` })
+    // ...(token && { 'Authorization': `Bearer ${token}` })
   };
 };
 

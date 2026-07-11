@@ -253,12 +253,17 @@ const ProfileSetupPage = () => {
     }
   };
 
-  const setUserName = async (nameOverride) => {
+  const setUserName = async (nameOverride, dobOverride) => {
     const sanitizedUsername = (nameOverride ?? username)?.trim();
+    const sanitizedDob = dobOverride ?? dateOfBirth;
     const response = await authenticatedFetch(USERNAME_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, username: sanitizedUsername }),
+      body: JSON.stringify({ 
+        email: email, 
+        username: sanitizedUsername, 
+        dob: sanitizedDob || null 
+      }),
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
@@ -287,7 +292,7 @@ const ProfileSetupPage = () => {
     try {
       if (uploadFile || selectedAvatarUrl) await uploadAvatar();
       const trimmedUsername = username.trim();
-      await setUserName(trimmedUsername);
+      await setUserName(trimmedUsername, dateOfBirth);
       const sessionUserRaw = sessionStorage.getItem('userData');
       let sessionUser = {};
       try {
@@ -324,7 +329,7 @@ const ProfileSetupPage = () => {
       await uploadAvatar({ avatarUrl: randomUrl });
       const finalUsername = username && username.trim() ? username.trim() : `user${Math.floor(1000 + Math.random()*9000)}`;
       setUsername(finalUsername);
-      await setUserName(finalUsername);
+      await setUserName(finalUsername, dateOfBirth || null);
       const sessionUserRaw = sessionStorage.getItem('userData');
       let sessionUser = {};
       try {

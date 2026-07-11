@@ -250,16 +250,14 @@ const SettingPage = () => {
                 nextUser.avatarUrl = profileSummary.data?.avatarUrl || profileSummary.data?.profileImage || profileSummary.avatarUrl || profileSummary.profileImage;
               }
             } else {
-           
-              const imgRes = results.find((r) => r && (r.data?.imageUrl || r.imageUrl || r.url));
-              const newUrl = imgRes?.data?.imageUrl || imgRes?.imageUrl || imgRes?.url;
+              const imgRes = results.find((r) => r && (r.data?.imageUrl || r.imageUrl || r.url || r.data?.avatarPreviewUrl || r.avatarPreviewUrl));
+              const newUrl = imgRes?.data?.avatarPreviewUrl || imgRes?.avatarPreviewUrl || imgRes?.data?.imageUrl || imgRes?.imageUrl || imgRes?.url;
               if (newUrl) nextUser.avatarUrl = newUrl;
             }
           } catch (profileError) {
             console.error('Failed to fetch profile summary:', profileError);
-         
-            const imgRes = results.find((r) => r && (r.data?.imageUrl || r.imageUrl || r.url));
-            const newUrl = imgRes?.data?.imageUrl || imgRes?.imageUrl || imgRes?.url;
+            const imgRes = results.find((r) => r && (r.data?.imageUrl || r.imageUrl || r.url || r.data?.avatarPreviewUrl || r.avatarPreviewUrl));
+            const newUrl = imgRes?.data?.avatarPreviewUrl || imgRes?.avatarPreviewUrl || imgRes?.data?.imageUrl || imgRes?.imageUrl || imgRes?.url;
             if (newUrl) nextUser.avatarUrl = newUrl;
           }
         }

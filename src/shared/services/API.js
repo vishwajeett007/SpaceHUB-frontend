@@ -892,10 +892,8 @@ export async function createNewChatroom(roomCode, name) {
   return handleJson(response);
 }
 
-// Create default Announcement group with general chatroom for a community
 export async function createDefaultAnnouncementGroup(communityId, requesterEmail) {
   try {
-    // Step 1: Create the Announcement group
     const groupUrl = `${BASE_URL}community/${communityId}/rooms/create`;
     const groupResponse = await authenticatedFetch(groupUrl, {
       method: 'POST',

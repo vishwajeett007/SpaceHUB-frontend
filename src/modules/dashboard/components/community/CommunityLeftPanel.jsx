@@ -782,8 +782,7 @@ const CreateGroupModal = ({ isOpen, onClose, communityName, communityId, onCreat
     try {
       const url = `${BASE_URL}community/${communityId}/rooms/create`;
       const body = {
-        roomName: groupName.trim(),
-        requesterEmail: user.email
+        roomName: groupName.trim()
       };
 
       const response = await authenticatedFetch(url, {

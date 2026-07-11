@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authenticatedFetch, BASE_URL, uploadProfileImage as uploadProfileImageApi } from '../../../shared/services/API';
+import { authenticatedFetch, BASE_URL, uploadProfileImage as uploadProfileImageApi, updateProfile } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
-
-const USERNAME_API = `${BASE_URL}dashboard/set-username`;
 
 const presetAvatarUrls = [
   '/avatars/avatar-1.png',
@@ -211,19 +209,10 @@ const ProfileSetupPage = () => {
   const setUserName = async (nameOverride, dobOverride) => {
     const sanitizedUsername = (nameOverride ?? username)?.trim();
     const sanitizedDob = dobOverride ?? dateOfBirth;
-    const response = await authenticatedFetch(USERNAME_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        email: email, 
-        username: sanitizedUsername, 
-        dob: sanitizedDob || null 
-      }),
+    await updateProfile({
+      username: sanitizedUsername,
+      dateOfBirth: sanitizedDob || null
     });
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      throw new Error((data && (data.message || data.error)) || 'Save failed');
-    }
   };
 
   const handleConfirm = async () => {

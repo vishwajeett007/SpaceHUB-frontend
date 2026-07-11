@@ -1,0 +1,87 @@
+package org.spacehub.controller.localgroup;
+
+import lombok.RequiredArgsConstructor;
+import org.spacehub.DTO.LocalGroup.DeleteLocalGroupRequest;
+import org.spacehub.DTO.LocalGroup.JoinLocalGroupRequest;
+import org.spacehub.DTO.LocalGroup.LocalGroupMemberDTO;
+import org.spacehub.DTO.LocalGroup.LocalGroupResponse;
+import org.spacehub.entities.ApiResponse.ApiResponse;
+import org.spacehub.service.Interface.ILocalGroupService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("api/v1/local-group")
+@RequiredArgsConstructor
+public class LocalGroupController {
+
+  private final ILocalGroupService localGroupService;
+
+  @PostMapping("/create")
+  public ResponseEntity<ApiResponse<LocalGroupResponse>> createLocalGroup(
+          @RequestParam("name") String name,
+          @RequestParam("description") String description,
+          @RequestParam("imageFile") MultipartFile imageFile) {
+    return localGroupService.createLocalGroup(name, description, imageFile);
+  }
+
+  @PostMapping("/join")
+  public ResponseEntity<ApiResponse<String>> joinLocalGroup(@RequestBody JoinLocalGroupRequest request) {
+    return localGroupService.joinLocalGroup(request);
+  }
+
+  @DeleteMapping("/delete")
+  public ResponseEntity<ApiResponse<String>> deleteLocalGroup(@RequestBody DeleteLocalGroupRequest request) {
+    return localGroupService.deleteLocalGroup(request);
+  }
+
+  @GetMapping("/all")
+  public ResponseEntity<ApiResponse<List<LocalGroupResponse>>> listAllLocalGroups() {
+    return localGroupService.listAllLocalGroups();
+  }
+
+  @GetMapping("/{id}")
+  public ResponseEntity<ApiResponse<LocalGroupResponse>> getLocalGroup(@PathVariable("id") UUID id) {
+    return localGroupService.getLocalGroup(id);
+  }
+
+  @GetMapping("/search")
+  public ResponseEntity<?> searchLocalGroups(
+          @RequestParam("q") String q,
+          @RequestParam(value = "page", defaultValue = "0") int page,
+          @RequestParam(value = "size", defaultValue = "20") int size) {
+    return localGroupService.searchLocalGroups(q, page, size);
+  }
+
+  @PostMapping("/{id}/enter")
+  public ResponseEntity<?> enterLocalGroup(
+          @PathVariable("id") UUID groupId) {
+    return localGroupService.enterOrJoinLocalGroup(groupId);
+  }
+
+  @GetMapping("/{id}/members")
+  public ResponseEntity<ApiResponse<List<LocalGroupMemberDTO>>> getLocalGroupMembers(
+    @PathVariable("id") UUID id) {
+    return localGroupService.getLocalGroupMembers(id);
+  }
+
+  @PostMapping(value = "/{id}/settings")
+  public ResponseEntity<ApiResponse<LocalGroupResponse>> updateLocalGroupSettings(
+    @PathVariable("id") UUID id,
+    @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
+    @RequestParam(value = "name", required = false) String newName) {
+    return localGroupService.updateLocalGroupSettings(id, imageFile, newName);
+  }
+
+  @GetMapping("/exists")
+  public ResponseEntity<ApiResponse<Map<String, Boolean>>> checkGroupNameExists(
+    @RequestParam("name") String name
+  ) {
+    return localGroupService.checkGroupNameExists(name);
+  }
+
+}

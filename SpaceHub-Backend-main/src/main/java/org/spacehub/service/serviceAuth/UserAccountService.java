@@ -1,0 +1,497 @@
+package org.spacehub.service.serviceAuth;
+
+import lombok.RequiredArgsConstructor;
+import org.spacehub.DTO.DTO_auth.LoginRequest;
+import org.spacehub.DTO.DTO_auth.OTPRequest;
+import org.spacehub.DTO.DTO_auth.RefreshRequest;
+import org.spacehub.DTO.DTO_auth.ResetPasswordRequest;
+import org.spacehub.DTO.DTO_auth.TokenResponse;
+import org.spacehub.DTO.DTO_auth.ValidateForgotOtpRequest;
+import org.spacehub.entities.ApiResponse.ApiResponse;
+import org.spacehub.entities.User.User;
+import org.spacehub.entities.Auth.RegistrationRequest;
+import org.spacehub.entities.OTP.OtpType;
+import org.spacehub.entities.User.UserRole;
+import org.spacehub.security.EmailValidator;
+import org.spacehub.service.serviceAuth.authInterfaces.IUserAccountService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class UserAccountService implements IUserAccountService {
+
+  private final VerificationService verificationService;
+  private final EmailValidator emailValidator;
+  private final OTPService otpService;
+  private final UserService userService;
+  private final RefreshTokenService refreshTokenService;
+  private final PasswordEncoder passwordEncoder;
+  private final RedisService redisService;
+  private final UserNameService userNameService;
+  private static final int TEMP_TOKEN_EXPIRE = 300;
+  private static final long FORGOT_TOKEN_EXPIRE_SECONDS = 2_592_000L;
+
+  public ApiResponse<TokenResponse> login(LoginRequest request) {
+
+    ApiResponse<TokenResponse> err = validateLoginRequest(request);
+    if (err != null) {
+      return err;
+    }
+
+    String rawIdentifier = request.getIdentifier();
+    String normalizedIdentifier;
+    User user;
+
+    try {
+      if (emailValidator.isEmail(rawIdentifier)) {
+        normalizedIdentifier = emailValidator.normalize(rawIdentifier);
+        user = userService.getUserByEmail(normalizedIdentifier);
+      } else {
+        return new ApiResponse<>(400, "Invalid identifier. Must be an email.", null);
+      }
+    } catch (UsernameNotFoundException e) {
+      return new ApiResponse<>(404, "User not found", null);
+    }
+
+    if (!Boolean.TRUE.equals(user.getEnabled())) {
+      return new ApiResponse<>(403, "Account not enabled. Please verify your OTP first.",
+        null);
+    }
+
+    if (!verificationService.checkCredentials(user, request.getPassword())) {
+      return new ApiResponse<>(401, "Invalid credentials", null);
+    }
+
+    TokenResponse tokens = generateTokensOrNull(user);
+    if (tokens == null) {
+      return new ApiResponse<>(500, "Failed to generate tokens", null);
+    }
+
+    tokens.setEmail(user.getEmail());
+
+    return new ApiResponse<>(200, "Logged in successfully", tokens);
+
+  }
+
+  private ApiResponse<TokenResponse> validateLoginRequest(LoginRequest request) {
+    if (request == null || request.getIdentifier() == null || request.getPassword() == null) {
+      return new ApiResponse<>(400, "Identifier and password are required", null);
+    }
+    return null;
+  }
+
+  private TokenResponse generateTokensOrNull(User user) {
+    try {
+      return verificationService.generateTokens(user);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  public ApiResponse<String> register(RegistrationRequest request) {
+
+    if (request == null) {
+      return new ApiResponse<>(400, "Registration data is required", null);
+    }
+
+    RegistrationRequest tempRegistration = new RegistrationRequest();
+    tempRegistration.setFirstName(request.getFirstName());
+    tempRegistration.setLastName(request.getLastName());
+    tempRegistration.setPassword(passwordEncoder.encode(request.getPassword()));
+
+    String identifier;
+    try {
+      identifier = processIdentifier(request, tempRegistration);
+    } catch (IllegalArgumentException e) {
+      return new ApiResponse<>(400, e.getMessage(), null);
+    }
+
+    ApiResponse<String> cooldownResponse = handleCooldown(identifier);
+    if (cooldownResponse != null) {
+      return cooldownResponse;
+    }
+
+    try {
+      otpService.saveTempOtp(identifier, tempRegistration);
+      otpService.sendOTP(identifier, OtpType.REGISTRATION);
+
+      String sessionToken = userNameService.generateRegistrationToken(identifier);
+      redisService.saveValue("REGISTRATION_SESSION_" + identifier, sessionToken, TEMP_TOKEN_EXPIRE);
+
+      return new ApiResponse<>(200, "OTP sent. Complete registration by validating OTP.",
+        sessionToken);
+    } catch (RuntimeException e) {
+      return new ApiResponse<>(500, "Registration failed: " + e.getMessage(), null);
+    }
+  }
+
+  private String processIdentifier(RegistrationRequest request, RegistrationRequest tempRegistration) {
+    if (request.getEmail() == null || request.getEmail().isBlank()) {
+      throw new IllegalArgumentException("Email is required for registration");
+    }
+
+    String email = emailValidator.normalize(request.getEmail());
+    if (!emailValidator.isEmail(email)) {
+      throw new IllegalArgumentException("Invalid email format");
+    }
+    if (userService.existsByEmail(email)) {
+      throw new IllegalArgumentException("User with this email already exists");
+    }
+    tempRegistration.setEmail(email);
+
+    return email;
+  }
+
+  private ApiResponse<String> handleCooldown(String identifier) {
+    if (otpService.isInCooldown(identifier, OtpType.REGISTRATION)) {
+      long secondsLeft = otpService.cooldownTime(identifier, OtpType.REGISTRATION);
+      return new ApiResponse<>(400,
+        "Please wait " + secondsLeft + " seconds before requesting OTP again.", null);
+    }
+    return null;
+  }
+
+  public ApiResponse<?> validateOTP(OTPRequest request) {
+
+    if (request.getIdentifier() == null || request.getOtp() == null || request.getType() == null) {
+      return new ApiResponse<>(400, "Identifier, OTP, and OTP type are required.", null);
+    }
+
+    String identifier;
+    try {
+      identifier = normalizeIdentifier(request);
+    } catch (IllegalArgumentException e) {
+      return new ApiResponse<>(400, e.getMessage(), null);
+    }
+
+    OtpType type = request.getType();
+    ApiResponse<?> earlyCheck = preValidateOtpChecks(identifier, type);
+    if (earlyCheck != null) {
+      return earlyCheck;
+    }
+
+    boolean valid = otpService.validateOTP(identifier, request.getOtp(), type);
+    if (!valid) {
+      return handleInvalidOtp(identifier, type);
+    }
+
+    otpService.markAsUsed(identifier, request.getOtp(), type);
+    return handleRegistrationOTP(identifier);
+  }
+
+  private String normalizeIdentifier(OTPRequest request) {
+    String raw = request.getIdentifier();
+    if (emailValidator.isEmail(raw)) {
+      return emailValidator.normalize(raw);
+    }
+    throw new IllegalArgumentException("Invalid email format.");
+  }
+
+  private ApiResponse<?> preValidateOtpChecks(String identifier, OtpType type) {
+    if (type != OtpType.REGISTRATION) {
+      return new ApiResponse<>(400, "Only registration OTP can be validated here.", null);
+    }
+
+    if (otpService.isBlocked(identifier, type)) {
+      return new ApiResponse<>(429, "Too many invalid OTP attempts. Try again later.", null);
+    }
+
+    if (otpService.isUsed(identifier, type)) {
+      return new ApiResponse<>(400, "OTP has already been used", null);
+    }
+
+    return null;
+  }
+
+  private ApiResponse<?> handleInvalidOtp(String identifier, OtpType type) {
+    long attempts = otpService.incrementOtpAttempts(identifier, type);
+    if (attempts >= 3) {
+      otpService.blockOtp(identifier, type);
+      return new ApiResponse<>(429, "Too many invalid attempts. Please request a new OTP.",
+        null);
+    }
+
+    return new ApiResponse<>(400, "Invalid or expired OTP. Attempts left: " + (3 - attempts),
+      null);
+  }
+
+  public ApiResponse<String> forgotPassword(String identifier) {
+
+    if (identifier == null) {
+      return new ApiResponse<>(400, "Email is required", null);
+    }
+
+    String normalizedIdentifier;
+    User user;
+    try {
+      if (emailValidator.isEmail(identifier)) {
+        normalizedIdentifier = emailValidator.normalize(identifier);
+        user = userService.getUserByEmail(normalizedIdentifier);
+      } else {
+        return new ApiResponse<>(200, "OTP has been sent",
+          null);
+      }
+    } catch (Exception e) {
+      return new ApiResponse<>(200, "OTP has been sent",
+        null);
+    }
+
+    if (otpService.isInCooldown(normalizedIdentifier, OtpType.FORGOT_PASSWORD)) {
+      long secondsLeft = otpService.cooldownTime(normalizedIdentifier, OtpType.FORGOT_PASSWORD);
+      return new ApiResponse<>(400,
+        "Please wait " + secondsLeft + " seconds before requesting OTP again.", null);
+    }
+
+    String tempToken = sendForgotPasswordOtpAndCreateTempToken(normalizedIdentifier, user);
+
+    return new ApiResponse<>(200, "OTP sent to your registered email", tempToken);
+  }
+
+  public ApiResponse<String> resetPassword(ResetPasswordRequest request) {
+    String identifier = request.getIdentifier();
+    String normalizedIdentifier;
+
+    if (emailValidator.isEmail(identifier)) {
+      normalizedIdentifier = emailValidator.normalize(identifier);
+    } else {
+      return new ApiResponse<>(400, "Invalid email.", null);
+    }
+
+    String tempToken = request.getTempToken();
+    String newPassword = request.getNewPassword();
+
+    String savedToken = redisService.getValue("TEMP_RESET_" + normalizedIdentifier);
+    if (savedToken == null || !savedToken.equals(tempToken)) {
+      return new ApiResponse<>(401, "Unauthorized. OTP not validated or token expired.",
+        null);
+    }
+
+    User user;
+    try {
+      user = userService.getUserByEmail(normalizedIdentifier);
+    } catch (Exception e) {
+      return new ApiResponse<>(400, "User not found", null);
+    }
+
+    user.setPassword(passwordEncoder.encode(newPassword));
+    int currentVersion;
+    if (user.getPasswordVersion() != null) {
+      currentVersion = user.getPasswordVersion();
+    } else {
+      currentVersion = 0;
+    }
+    user.setPasswordVersion(currentVersion + 1);
+    userService.save(user);
+    redisService.deleteValue("TEMP_RESET_" + normalizedIdentifier);
+
+    return new ApiResponse<>(200, "Password has been reset successfully", null);
+  }
+
+  public ApiResponse<String> logout(RefreshRequest request) {
+    if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
+      return new ApiResponse<>(400, "Refresh token is required", null);
+    }
+
+    String refreshToken = request.getRefreshToken();
+    boolean deleted = refreshTokenService.deleteIfExists(refreshToken);
+
+    if (!deleted) {
+      return new ApiResponse<>(404, "Refresh token not found", null);
+    }
+
+    return new ApiResponse<>(200, "Logout successful", null);
+  }
+
+  private ApiResponse<?> handleRegistrationOTP(String identifier) {
+    try {
+      RegistrationRequest tempRequest = otpService.getTempOtp(identifier);
+      if (tempRequest == null) {
+        return new ApiResponse<>(400, "Registration session expired or not found", null);
+      }
+
+      if (isUserAlreadyRegistered(tempRequest)) {
+        return new ApiResponse<>(400, "User already registered", null);
+      }
+
+      User newUser = buildUserFromRequest(tempRequest);
+      userService.save(newUser);
+
+      otpService.deleteTempOtp(identifier);
+      otpService.deleteOTP(identifier, OtpType.REGISTRATION);
+      otpService.deleteRegistrationSessionToken(identifier);
+
+      return new ApiResponse<>(200, "Registration verified successfully", null);
+
+    } catch (Exception e) {
+      return new ApiResponse<>(500, "Registration verification failed: " + e.getMessage(),
+        null);
+    }
+  }
+
+  private boolean isUserAlreadyRegistered(RegistrationRequest tempRequest) {
+    return tempRequest.getEmail() != null && userService.existsByEmail(tempRequest.getEmail());
+  }
+
+  private User buildUserFromRequest(RegistrationRequest tempRequest) {
+    User newUser = new User();
+    newUser.setFirstName(tempRequest.getFirstName());
+    newUser.setLastName(tempRequest.getLastName());
+    newUser.setPassword(tempRequest.getPassword());
+    newUser.setIsVerifiedRegistration(true);
+    newUser.setEnabled(true);
+    newUser.setLocked(false);
+    newUser.setUserRole(UserRole.USER);
+
+    if (tempRequest.getEmail() != null) {
+      newUser.setEmail(tempRequest.getEmail());
+    }
+
+    return newUser;
+  }
+
+  public ApiResponse<String> resendOTP(String identifier, String sessionToken) {
+    if (identifier == null || sessionToken == null) {
+      return new ApiResponse<>(400, "Identifier and session token are required", null);
+    }
+
+    String normalizedIdentifier;
+    if (emailValidator.isEmail(identifier)) {
+      normalizedIdentifier = emailValidator.normalize(identifier);
+    } else {
+      return new ApiResponse<>(400, "Invalid email format.", null);
+    }
+
+    String savedToken = redisService.getValue("REGISTRATION_SESSION_" + normalizedIdentifier);
+    boolean sessionValid = savedToken != null && savedToken.equals(sessionToken);
+
+    if (!sessionValid) {
+      return new ApiResponse<>(403, "Invalid or expired registration session token", null);
+    }
+
+    if (isUserAlreadyVerified(normalizedIdentifier)) {
+      return new ApiResponse<>(400, "User already verified. No OTP needed.", null);
+    }
+
+    if (otpService.isInCooldown(normalizedIdentifier, OtpType.REGISTRATION)) {
+      long secondsLeft = otpService.cooldownTime(normalizedIdentifier, OtpType.REGISTRATION);
+      return new ApiResponse<>(400, "Please wait " + secondsLeft +
+        " seconds before requesting OTP again.", null);
+    }
+
+    return attemptSendOtp(normalizedIdentifier);
+  }
+
+  public ApiResponse<TokenResponse> validateForgotPasswordOtp(
+    ValidateForgotOtpRequest request) {
+    String rawIdentifier = request.getIdentifier();
+    String normalizedIdentifier;
+
+    if (emailValidator.isEmail(rawIdentifier)) {
+      normalizedIdentifier = emailValidator.normalize(rawIdentifier);
+    } else {
+      return new ApiResponse<>(400, "Invalid email format.", null);
+    }
+
+    String otp = request.getOtp();
+
+    if (otpService.isBlocked(normalizedIdentifier, OtpType.FORGOT_PASSWORD)) {
+      return new ApiResponse<>(429, "Too many invalid OTP attempts. Try again later.",
+        null);
+    }
+
+    if (otpService.isUsed(normalizedIdentifier, OtpType.FORGOT_PASSWORD)) {
+      return new ApiResponse<>(400, "OTP has already been used", null);
+    }
+
+    boolean valid = otpService.validateOTP(normalizedIdentifier, otp, OtpType.FORGOT_PASSWORD);
+    if (!valid) {
+      long attempts = otpService.incrementOtpAttempts(normalizedIdentifier, OtpType.FORGOT_PASSWORD);
+      if (attempts >= 3) {
+        otpService.blockOtp(normalizedIdentifier, OtpType.FORGOT_PASSWORD);
+        return new ApiResponse<>(429, "Too many invalid OTP attempts. Request a new OTP.",
+          null);
+      }
+      return new ApiResponse<>(400, "Invalid or expired OTP. Attempts left: " + (3 - attempts),
+        null);
+    }
+
+    otpService.markAsUsed(normalizedIdentifier, otp, OtpType.FORGOT_PASSWORD);
+    User user;
+    try {
+      user = userService.getUserByEmail(normalizedIdentifier);
+    } catch (Exception e) {
+      return new ApiResponse<>(400, "User not found", null);
+    }
+
+    String tempToken = userNameService.generateToken(user);
+    redisService.saveValue("TEMP_RESET_" + normalizedIdentifier, tempToken, TEMP_TOKEN_EXPIRE);
+    TokenResponse tokenResponse = new TokenResponse(tempToken, null);
+
+    return new ApiResponse<>(200, "OTP validated successfully", tokenResponse);
+  }
+
+  public ApiResponse<String> resendForgotPasswordOtp(String tempToken) {
+    String identifier = otpService.extractIdentifierFromToken(tempToken, OtpType.FORGOT_PASSWORD);
+
+    if (identifier == null) {
+      return new ApiResponse<>(403, "Session expired or invalid", null);
+    }
+
+    if (otpService.isInCooldown(identifier, OtpType.FORGOT_PASSWORD)) {
+      long secondsLeft = otpService.cooldownTime(identifier, OtpType.FORGOT_PASSWORD);
+      return new ApiResponse<>(400, "Please wait " + secondsLeft +
+        " seconds before requesting OTP again.", null);
+    }
+
+    User user;
+    try {
+      user = userService.getUserByEmail(identifier);
+    } catch (Exception e) {
+      return new ApiResponse<>(404, "User not found", null);
+    }
+
+    try {
+      String newTempToken = sendForgotPasswordOtpAndCreateTempToken(identifier, user);
+      return new ApiResponse<>(200, "OTP resent successfully.", newTempToken);
+    } catch (RuntimeException e) {
+      return new ApiResponse<>(429, e.getMessage(), null);
+    }
+  }
+
+  private boolean isUserAlreadyVerified(String identifier) {
+    try {
+      User existingUser = userService.getUserByEmail(identifier);
+      return existingUser != null && Boolean.TRUE.equals(existingUser.getEnabled());
+    } catch (Exception ignored) {
+      return false;
+    }
+  }
+
+  private ApiResponse<String> attemptSendOtp(String identifier) {
+    try {
+      otpService.sendOTP(identifier, OtpType.REGISTRATION);
+      return new ApiResponse<>(200, "OTP resent successfully.", null);
+    } catch (RuntimeException e) {
+      return new ApiResponse<>(429, e.getMessage(), null);
+    }
+  }
+
+  private String sendForgotPasswordOtpAndCreateTempToken(String identifier, User user) {
+    otpService.sendOTP(identifier, OtpType.FORGOT_PASSWORD);
+
+    var tokenResponse = verificationService.generateTokens(user);
+    long tokenExpire = FORGOT_TOKEN_EXPIRE_SECONDS;
+
+    String tempTokenKey = "TEMP_TOKEN_" + OtpType.FORGOT_PASSWORD + "_" + identifier;
+    redisService.deleteValue(tempTokenKey);
+    redisService.saveValue(tempTokenKey, tokenResponse.getAccessToken(), tokenExpire);
+
+    String tokenToIdentifierKey = OtpType.FORGOT_PASSWORD.name() + "_" + tokenResponse.getAccessToken();
+    redisService.saveValue(tokenToIdentifierKey, identifier, tokenExpire);
+
+    return tokenResponse.getAccessToken();
+  }
+
+}

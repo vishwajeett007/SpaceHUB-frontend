@@ -124,7 +124,6 @@ export async function createCommunity({ name, description, createdByEmail, image
   const formData = new FormData();
   formData.append('name', name);
   formData.append('description', description);
-  formData.append('createdByEmail', createdByEmail);
   if (imageFile) {
     formData.append('imageFile', imageFile);
   }
@@ -158,7 +157,6 @@ export async function createLocalGroup({ name, description, createdByEmail, imag
   const formData = new FormData();
   formData.append('name', name);
   formData.append('description', description);
-  formData.append('creatorEmail', createdByEmail);
   if (imageFile) {
     formData.append('imageFile', imageFile);
   }
@@ -246,9 +244,7 @@ export async function getMyCommunities() {
 }
 
 export async function getAllLocalGroups(requesterEmail) {
-  const url = requesterEmail
-    ? `${BASE_URL}local-group/all?requesterEmail=${encodeURIComponent(requesterEmail)}`
-    : `${BASE_URL}local-group/all`;
+  const url = `${BASE_URL}local-group/all`;
   const response = await authenticatedFetch(url, {
     method: 'GET'
   });
@@ -294,7 +290,7 @@ export async function changeCommunityRole({ communityId, targetUserEmail, reques
   const response = await authenticatedFetch(`${BASE_URL}community/changeRole`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ communityId, targetUserEmail, requesterEmail, newRole })
+    body: JSON.stringify({ communityId, targetUserEmail, newRole })
   });
   let data;
   try { data = await response.json(); } catch { data = null; }
@@ -341,7 +337,7 @@ export async function deleteCommunity({ name, userEmail }) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ name, userEmail })
+    body: JSON.stringify({ name })
   });
   let data;
   try {
@@ -369,7 +365,7 @@ export async function leaveCommunity({ communityName, userEmail }) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ communityName, userEmail })
+    body: JSON.stringify({ communityName })
   });
   let data;
   try {
@@ -398,7 +394,7 @@ export async function createCommunityInvite({ communityId, inviterEmail, email }
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ inviterEmail, email })
+    body: JSON.stringify({ email })
   });
   let data;
   try {
@@ -428,7 +424,7 @@ export async function createLocalGroupInvite({ groupId, inviterEmail, maxUses = 
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ inviterEmail, maxUses, expiresInHours })
+    body: JSON.stringify({ maxUses, expiresInHours })
   });
   let data;
   try {
@@ -483,7 +479,7 @@ export async function acceptCommunityInvite({ communityId, inviteCode, acceptorE
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ communityId, inviteCode, acceptorEmail })
+    body: JSON.stringify({ communityId, inviteCode })
   });
   let data;
   try {
@@ -513,8 +509,7 @@ export async function joinCommunity(communityName, userEmail) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      communityName: communityName,
-      userEmail: userEmail
+      communityName: communityName
     })
   });
   let data;
@@ -546,7 +541,7 @@ export async function acceptJoinRequest({ communityName, creatorEmail, userEmail
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ communityName, creatorEmail, userEmail })
+    body: JSON.stringify({ communityName, userEmail })
   });
   let data;
   try {
@@ -575,7 +570,7 @@ export async function rejectJoinRequest({ communityName, creatorEmail, userEmail
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ communityName, creatorEmail, userEmail })
+    body: JSON.stringify({ communityName, userEmail })
   });
   let data;
   try {
@@ -611,7 +606,7 @@ export async function sendFriendRequest(userEmail, friendEmail) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ userEmail, friendEmail })
+    body: JSON.stringify({ friendEmail })
   });
   return handleJson(response);
 }
@@ -623,7 +618,7 @@ export async function getFriendsList(userEmail) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ userEmail })
+    body: JSON.stringify({})
   });
   return handleJson(response);
 }
@@ -641,7 +636,7 @@ export async function respondToFriendRequest({ userEmail, requesterEmail, accept
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ userEmail, requesterEmail, accept })
+    body: JSON.stringify({ requesterEmail, accept })
   });
   return handleJson(response);
 }
@@ -653,7 +648,7 @@ export async function removeFriend({ userEmail, friendEmail }) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ userEmail, friendEmail })
+    body: JSON.stringify({ friendEmail })
   });
   return handleJson(response);
 }
@@ -665,14 +660,14 @@ export async function sendFriendMessage({ userEmail, friendEmail, message, image
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ userEmail, friendEmail, message, images })
+    body: JSON.stringify({ friendEmail, message, images })
   });
   return handleJson(response);
 }
 
 // Get messages with a friend
 export async function getFriendMessages({ userEmail, friendEmail, page = 0, size = 50 }) {
-  const response = await authenticatedFetch(`${BASE_URL}friends/messages?userEmail=${encodeURIComponent(userEmail)}&friendEmail=${encodeURIComponent(friendEmail)}&page=${page}&size=${size}`, {
+  const response = await authenticatedFetch(`${BASE_URL}friends/messages?friendEmail=${encodeURIComponent(friendEmail)}&page=${page}&size=${size}`, {
     method: 'GET'
   });
   return handleJson(response);
@@ -690,7 +685,6 @@ export async function getChatHistory(user1, user2) {
 export async function searchCommunities({ query, requesterEmail, page = 0, size = 10 }) {
   const params = new URLSearchParams();
   params.set('q', query);
-  if (requesterEmail) params.set('requesterEmail', requesterEmail);
   params.set('page', String(page));
   params.set('size', String(size));
   const response = await authenticatedFetch(`${BASE_URL}community/search?${params.toString()}`, {
@@ -813,7 +807,7 @@ export async function updateProfile({ currentPassword, newPassword, firstName, l
 }
 export async function removeCommunityMember(communityId, userEmail, requesterEmail) {
   const url = `${BASE_URL}community/removeMember`;
-  const payload = { communityId, userEmail, requesterEmail };
+  const payload = { communityId, userEmail };
   try {
     const response = await authenticatedFetch(url, {
       method: 'POST',
@@ -829,7 +823,7 @@ export async function removeCommunityMember(communityId, userEmail, requesterEma
 }
 
 export async function deleteCommunityRoom(communityId, roomId, requesterEmail) {
-  const response = await authenticatedFetch(`${BASE_URL}community/${communityId}/rooms/${roomId}?requesterEmail=${encodeURIComponent(requesterEmail)}`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/${communityId}/rooms/${roomId}`, {
     method: 'DELETE'
   });
   return handleJson(response);
@@ -856,7 +850,7 @@ export async function joinRoom(roomCode, userId) {
   const response = await authenticatedFetch(`${BASE_URL}rooms/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ roomCode, email: userId })
+    body: JSON.stringify({ roomCode })
   });
   return handleJson(response);
 }
@@ -868,7 +862,7 @@ export async function joinLocalGroup({ groupId, userEmail }) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ groupId, userEmail })
+    body: JSON.stringify({ groupId })
   });
   return handleJson(response);
 }
@@ -880,7 +874,7 @@ export async function acceptLocalGroupInvite({ groupId, inviteCode, acceptorEmai
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ groupId, inviteCode, acceptorEmail })
+    body: JSON.stringify({ groupId, inviteCode })
   });
   return handleJson(response);
 }
@@ -909,8 +903,7 @@ export async function createDefaultAnnouncementGroup(communityId, requesterEmail
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        roomName: 'Announcement',
-        requesterEmail: requesterEmail
+        roomName: 'Announcement'
       })
     });
 
@@ -968,7 +961,6 @@ export async function createVoiceRoom(chatRoomId, roomName, createdBy) {
   const params = new URLSearchParams();
   params.set('chatRoomId', chatRoomId);
   params.set('roomName', roomName);
-  params.set('createdBy', createdBy);
 
   const response = await authenticatedFetch(`${BASE_URL}voice-room/create?${params.toString()}`, {
     method: 'POST'
@@ -981,7 +973,6 @@ export async function deleteVoiceRoom(chatRoomId, roomName, requester) {
   const params = new URLSearchParams();
   params.set('chatRoomId', chatRoomId);
   params.set('roomName', roomName);
-  params.set('requester', requester);
 
   const response = await authenticatedFetch(`${BASE_URL}voice-room/delete?${params.toString()}`, {
     method: 'DELETE'
@@ -1074,13 +1065,13 @@ export const authenticatedFetch = async (url, options = {}) => {
   });
   console.log(`[API Response] ${url} status:`, response.status, response);
 
-  if (response.status === 401) {
-    sessionStorage.removeItem('accessToken');
-    localStorage.removeItem('accessToken');
-    sessionStorage.removeItem('userData');
-    localStorage.removeItem('userData');
-    window.location.href = '/login';
-  }
+  // if (response.status === 401) {
+  //   sessionStorage.removeItem('accessToken');
+  //   localStorage.removeItem('accessToken');
+  //   sessionStorage.removeItem('userData');
+  //   localStorage.removeItem('userData');
+  // window.location.href = '/login';
+  // }
 
   // Handle 429 Too Many Requests
   if (response.status === 429) {

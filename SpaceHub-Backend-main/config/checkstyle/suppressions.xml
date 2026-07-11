@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE suppressions PUBLIC
+        "-//Puppy Crawl//DTD Suppressions 1.1//EN"
+        "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+    <suppress checks="JavadocStyleCheck"
+              files="GeneratedObject.java"
+              lines="50-9999"/>
+    <suppress checks="NewlineAtEndOfFile" files="src[/\\]test[/\\]resources[/\\].*"/>
+    <suppress checks="LineLength" files="src[/\\]test[/\\]resources[/\\].*"/>
+    <suppress checks="LineLength" files="src[/\\]main[/\\]resources[/\\].*"/>
+    <suppress checks="PackageName" files=".*"/>
+    <suppress checks="WhitespaceAround" files=".*"/>
+    <suppress checks="AvoidStarImport" files=".*"/>
+    <suppress checks="UnnecessaryParentheses" files=".*"/>
+</suppressions>

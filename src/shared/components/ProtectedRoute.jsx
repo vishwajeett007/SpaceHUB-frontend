@@ -3,17 +3,10 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../shared/contexts/AuthContextContext';
 import LoadingSpinner from './LoadingSpinner';
 
-// Temporarily disable route protection — always render children.
-// Original auth logic is kept commented for easy restore.
-const ProtectedRoute = ({ children }) => {
-  return children;
-};
-
-/*
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  const profileSetupRequired = sessionStorage.getItem('profileSetupRequired') === 'true';
+  const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
 
   if (loading) {
     return <LoadingSpinner message="Checking authentication..." />;
@@ -29,6 +22,5 @@ const ProtectedRoute = ({ children }) => {
 
   return children;
 };
-*/
 
 export default ProtectedRoute;

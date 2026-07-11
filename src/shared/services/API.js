@@ -18,9 +18,13 @@ export async function loginUser(payload) {
   });
   const data = await handleJson(response);
 
-  const token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
+  let token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
+  if (token === 'undefined' || token === 'null') {
+    token = null;
+  }
   if (token) {
     sessionStorage.setItem('accessToken', token);
+    localStorage.setItem('accessToken', token);
     const responseEmail = data?.email || data?.data?.email;
 
     if (data.user || data.data?.user) {
@@ -29,9 +33,11 @@ export async function loginUser(payload) {
         userObj.email = String(responseEmail);
       }
       sessionStorage.setItem('userData', JSON.stringify(userObj));
+      localStorage.setItem('userData', JSON.stringify(userObj));
     } else if (responseEmail) {
       const userData = { email: String(responseEmail) };
       sessionStorage.setItem('userData', JSON.stringify(userData));
+      localStorage.setItem('userData', JSON.stringify(userData));
     }
   }
 
@@ -81,12 +87,17 @@ export async function resetPassword(payload) {
   });
   const data = await handleJson(response);
 
-  const token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
+  let token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
+  if (token === 'undefined' || token === 'null') {
+    token = null;
+  }
   if (token) {
     sessionStorage.setItem('accessToken', token);
+    localStorage.setItem('accessToken', token);
     if (data.user || data.data?.user) {
       const userObj = data.user || data.data?.user;
       sessionStorage.setItem('userData', JSON.stringify(userObj));
+      localStorage.setItem('userData', JSON.stringify(userObj));
     }
   }
 
@@ -989,6 +1000,7 @@ async function handleJson(response) {
     data = null;
   }
   if (!response.ok) {
+    console.error(`API Error response for ${response.url}:`, { status: response.status, data });
     if (response.status === 429) {
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: 'Wait for some time to reload', type: 'error' }
@@ -1001,9 +1013,25 @@ async function handleJson(response) {
   }
   return data;
 }
+export const getCookie = (name) => {
+  try {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const val = parts.pop().split(';').shift();
+      return val === 'undefined' || val === 'null' ? null : val;
+    }
+  } catch (error) {
+    console.error('Error getting cookie:', error);
+  }
+  return null;
+};
 
 export const getAuthHeaders = (isFormData = false) => {
-  const token = sessionStorage.getItem('accessToken');
+  let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || getCookie('token');
+  if (token === 'undefined' || token === 'null') {
+    token = null;
+  }
   return {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token && { 'Authorization': `Bearer ${token}` })
@@ -1014,6 +1042,8 @@ export const authenticatedFetch = async (url, options = {}) => {
   const isFormData = options.body instanceof FormData;
   const headers = getAuthHeaders(isFormData);
 
+  console.log(`[API Request] Fetching ${url} with headers:`, headers);
+
   const response = await fetch(url, {
     ...options,
     credentials: 'include',
@@ -1022,11 +1052,13 @@ export const authenticatedFetch = async (url, options = {}) => {
       ...options.headers
     }
   });
-  // console.log('response', response);
+  console.log(`[API Response] ${url} status:`, response.status, response);
 
   if (response.status === 401) {
     sessionStorage.removeItem('accessToken');
+    localStorage.removeItem('accessToken');
     sessionStorage.removeItem('userData');
+    localStorage.removeItem('userData');
     window.location.href = '/login';
   }
 

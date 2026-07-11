@@ -303,7 +303,7 @@ const ProfileSetupPage = () => {
       };
 
       sessionStorage.setItem('userData', JSON.stringify(updatedUser));
-      sessionStorage.setItem('profileSetupRequired', 'false');
+      localStorage.setItem('profileSetupRequired', 'false');
       updateUser?.(updatedUser);
       navigate('/dashboard');
     } catch (e) {
@@ -340,7 +340,7 @@ const ProfileSetupPage = () => {
       };
 
       sessionStorage.setItem('userData', JSON.stringify(updatedUser));
-      sessionStorage.setItem('profileSetupRequired', 'false');
+      localStorage.setItem('profileSetupRequired', 'false');
       updateUser?.(updatedUser);
       navigate('/dashboard');
     } catch (e) {

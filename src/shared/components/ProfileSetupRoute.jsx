@@ -6,7 +6,7 @@ import LoadingSpinner from './LoadingSpinner';
 const ProfileSetupRoute = ({ children }) => {
   const { isAuthenticated, loading, getToken } = useAuth();
   const location = useLocation();
-  const profileSetupRequired = sessionStorage.getItem('profileSetupRequired') === 'true';
+  const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
 
   if (loading) {
     return <LoadingSpinner message="Checking authentication..." />;

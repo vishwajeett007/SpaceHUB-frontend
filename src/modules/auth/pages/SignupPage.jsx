@@ -308,42 +308,17 @@ const SignupPage = () => {
         type: 'REGISTRATION',
         sessionToken: registrationToken || sessionStorage.getItem('registrationToken') || ''
       });
-      let token = null;
-      if (typeof data === 'string') {
-        token = data;
-      } else {
-        token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token || data?.data;
-      }
-
-      if (token) {
-        sessionStorage.setItem('accessToken', token);
-      }
-      let userData = null;
-      if (data?.user || data?.data?.user) {
-        userData = data.user || data.data.user;
-      } else {
-        const savedEmail = sessionStorage.getItem('signupEmail');
-        const savedFirstName = sessionStorage.getItem('signupFirstName');
-        const savedLastName = sessionStorage.getItem('signupLastName');
-        userData = {
-          email: savedEmail || formData.email,
-          firstName: savedFirstName || formData.firstName,
-          lastName: savedLastName || formData.lastName
-        };
-      }
-
-      if (userData) {
-        sessionStorage.setItem('userData', JSON.stringify(userData));
-      }
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('userData');
       try {
-        // Persist identifiers for later use
         sessionStorage.setItem('lastIdentifier', formData.email);
         sessionStorage.setItem('lastEmail', formData.email);
       } catch { }
+
+      localStorage.setItem('profileSetupRequired', 'true');
       checkAuthStatus();
-      showToast('Account created successfully!', 'success');
-      sessionStorage.setItem('profileSetupRequired', 'true');
-      navigate('/profile/setup', { replace: true });
+      showToast('Account created successfully! Please log in to complete your profile setup.', 'success');
+      navigate('/login', { replace: true });
     } catch (err) {
       console.error('OTP verification failed:', err.message);
       const errorMessage = err.message || 'Verification failed. Please try again.';
@@ -471,8 +446,8 @@ const SignupPage = () => {
                       </p>
                     )}
                     <p className={`text-xs ml-auto ${formData.firstName.length > 40 ? 'text-orange-500' :
-                        formData.firstName.length > 30 ? 'text-yellow-500' :
-                          'text-gray-400'
+                      formData.firstName.length > 30 ? 'text-yellow-500' :
+                        'text-gray-400'
                       }`}>
                       {formData.firstName.length}/50
                     </p>
@@ -507,8 +482,8 @@ const SignupPage = () => {
                       </p>
                     )}
                     <p className={`text-xs ml-auto ${formData.lastName.length > 40 ? 'text-orange-500' :
-                        formData.lastName.length > 30 ? 'text-yellow-500' :
-                          'text-gray-400'
+                      formData.lastName.length > 30 ? 'text-yellow-500' :
+                        'text-gray-400'
                       }`}>
                       {formData.lastName.length}/50
                     </p>
@@ -745,8 +720,8 @@ const SignupPage = () => {
                       href="#"
                       onClick={handleResendOtp}
                       className={`text-default underline font-medium ${loading || resendTimer > 0
-                          ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-500'
-                          : 'hover:text-blue-700'
+                        ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-500'
+                        : 'hover:text-blue-700'
                         }`}
                     >
                       {loading

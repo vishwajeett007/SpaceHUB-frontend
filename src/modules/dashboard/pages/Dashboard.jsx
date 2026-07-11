@@ -163,7 +163,7 @@ const Dashboard = () => {
 
 
   useEffect(() => {
-    const profileSetupRequired = sessionStorage.getItem('profileSetupRequired') === 'true';
+    const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
     if (profileSetupRequired) return;
 
     const sessionUserRaw = sessionStorage.getItem('userData');

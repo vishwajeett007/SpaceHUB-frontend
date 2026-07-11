@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-
+import { getCookie } from '../../services/API';
 const initialState = {
   user: null,
   token: null,
@@ -16,25 +16,28 @@ const authSlice = createSlice({
     },
     checkAuthStatus: (state) => {
       try {
-        const token = sessionStorage.getItem('accessToken');
+        let token = sessionStorage.getItem('accessToken') || getCookie('token');
+        if (token === 'undefined' || token === 'null') {
+          token = null;
+        }
         const userData = sessionStorage.getItem('userData');
 
         if (userData) {
           const parsedUserData = JSON.parse(userData);
           state.user = parsedUserData;
-          state.token = token || null;
+          state.token = token;
           state.isAuthenticated = true;
         } else {
           state.user = null;
           state.token = null;
           state.isAuthenticated = false;
-          sessionStorage.removeItem('profileSetupRequired');
+          localStorage.removeItem('profileSetupRequired');
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('userData');
-        sessionStorage.removeItem('profileSetupRequired');
+        localStorage.removeItem('profileSetupRequired');
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
@@ -43,7 +46,10 @@ const authSlice = createSlice({
       }
     },
     login: (state, action) => {
-      const { userData, token } = action.payload;
+      let { userData, token } = action.payload;
+      if (token === 'undefined' || token === 'null') {
+        token = null;
+      }
       try {
         if (token) {
           sessionStorage.setItem('accessToken', token);
@@ -52,7 +58,7 @@ const authSlice = createSlice({
         sessionStorage.setItem('userData', JSON.stringify(userData));
         state.user = userData;
         state.isAuthenticated = true;
-        sessionStorage.removeItem('profileSetupRequired');
+        localStorage.removeItem('profileSetupRequired');
       } catch (error) {
         console.error('Error saving auth data:', error);
       }
@@ -63,7 +69,7 @@ const authSlice = createSlice({
         sessionStorage.removeItem('userData');
         sessionStorage.removeItem('resetEmail');
         sessionStorage.removeItem('resetAccessToken');
-        sessionStorage.removeItem('profileSetupRequired');
+        localStorage.removeItem('profileSetupRequired');
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;

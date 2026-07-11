@@ -46,6 +46,12 @@ const LoginPage = () => {
   };
 
   useEffect(() => {
+    try {
+      const savedIdentifier = sessionStorage.getItem('lastIdentifier');
+      if (savedIdentifier) {
+        setIdentifier(savedIdentifier);
+      }
+    } catch { }
     return () => {
       Object.values(debounceRefs.current).forEach((timer) => clearTimeout(timer));
     };
@@ -103,6 +109,7 @@ const LoginPage = () => {
 
         }
 
+        const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
         login(userWithId, token);
         Cookies.set("token", token);
         try {
@@ -112,7 +119,11 @@ const LoginPage = () => {
           }
         } catch { }
         showToast('Login successful!', 'success');
-        navigate('/dashboard');
+        if (profileSetupRequired) {
+          navigate('/profile/setup', { replace: true });
+        } else {
+          navigate('/dashboard');
+        }
       })
       .catch((err) => {
         console.error('Login failed:', err.message);

@@ -2,11 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { registerUser, validateRegisterOtp, resendRegisterOtp } from '../../../shared/services/API';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthSlides from '../components/AuthSlides';
-import { useAuth } from '../../../shared/contexts/AuthContextContext';
 
 const SignupPage = () => {
   const navigate = useNavigate();
-  const { checkAuthStatus } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -316,7 +314,6 @@ const SignupPage = () => {
       } catch { }
 
       localStorage.setItem('profileSetupRequired', 'true');
-      checkAuthStatus();
       showToast('Account created successfully! Please log in to complete your profile setup.', 'success');
       navigate('/login', { replace: true });
     } catch (err) {

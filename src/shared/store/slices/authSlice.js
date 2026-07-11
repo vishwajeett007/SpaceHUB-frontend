@@ -31,13 +31,11 @@ const authSlice = createSlice({
           state.user = null;
           state.token = null;
           state.isAuthenticated = false;
-          localStorage.removeItem('profileSetupRequired');
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
         sessionStorage.removeItem('accessToken');
         sessionStorage.removeItem('userData');
-        localStorage.removeItem('profileSetupRequired');
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
@@ -58,7 +56,6 @@ const authSlice = createSlice({
         sessionStorage.setItem('userData', JSON.stringify(userData));
         state.user = userData;
         state.isAuthenticated = true;
-        localStorage.removeItem('profileSetupRequired');
       } catch (error) {
         console.error('Error saving auth data:', error);
       }

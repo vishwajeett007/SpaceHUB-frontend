@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authenticatedFetch, BASE_URL } from '../../../shared/services/API';
+import { authenticatedFetch, BASE_URL, uploadProfileImage as uploadProfileImageApi } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 
 const USERNAME_API = `${BASE_URL}dashboard/set-username`;
-const UPLOAD_API = `${BASE_URL}dashboard/upload-profile-image`;
 
 const presetAvatarUrls = [
   '/avatars/avatar-1.png',
@@ -190,41 +189,11 @@ const ProfileSetupPage = () => {
   };
 
   const uploadAvatar = async ({ file: fileOverride, avatarUrl: avatarUrlOverride } = {}) => {
-    const getEmailFromStorage = () => {
-      let emailToSend = (email && email.trim()) || '';
-      if (!emailToSend) {
-        try {
-          let raw = sessionStorage.getItem('userData');
-
-          if (raw) {
-            emailToSend = JSON.parse(raw)?.email || '';
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      }
-      return emailToSend;
-    };
-
     const effectiveFile = fileOverride ?? uploadFile;
     const effectiveAvatarUrl = avatarUrlOverride ?? selectedAvatarUrl;
 
     if (effectiveFile) {
-      const formData = new FormData();
-      const emailToSend = getEmailFromStorage();
-      if (!emailToSend) {
-        throw new Error('Email is required. Please log in again.');
-      }
-      formData.append('email', emailToSend);
-      formData.append('image', effectiveFile);
-      const response = await authenticatedFetch(UPLOAD_API, { method: 'POST', body: formData });
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        let data = null;
-        try { data = JSON.parse(text); } catch {//for errors
-        }
-        throw new Error((data && (data.message || data.error)) || text || 'Upload failed');
-      }
+      await uploadProfileImageApi({ imageFile: effectiveFile });
       return;
     }
 
@@ -235,21 +204,7 @@ const ProfileSetupPage = () => {
         throw new Error('Selected avatar exceeds 2MB limit');
       }
       const fileFromBlob = new File([blob], 'avatar.png', { type: blob.type || 'image/png' });
-      const formData = new FormData();
-      const emailToSend = getEmailFromStorage();
-      if (!emailToSend) {
-        throw new Error('Email is required. Please log in again.');
-      }
-      formData.append('email', emailToSend);
-      formData.append('image', fileFromBlob);
-      const response = await authenticatedFetch(UPLOAD_API, { method: 'POST', body: formData });
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        let data = null;
-        try { data = JSON.parse(text); } catch {//for errors
-        }
-        throw new Error((data && (data.message || data.error)) || text || 'Upload failed');
-      }
+      await uploadProfileImageApi({ imageFile: fileFromBlob });
     }
   };
 

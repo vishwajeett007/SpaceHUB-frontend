@@ -442,7 +442,10 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         </>
       )}
 
-      {/* HERO SECTION / FEATURES */}
+      {/* MAIN CONTENT LANDMARK */}
+      <main id="main-content">
+        {/* HERO SECTION / FEATURES */}
+
       <section
         id="Home"
         className="w-full min-h-[37rem] sm:min-h-screen py-8 sm:py-12 lg:py-16 relative px-4 sm:px-6"
@@ -504,7 +507,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       {/* DISCOVER SECTION */}
       <section id="About" className="max-w-screen relative mb-7 sm:mb-[13rem]">
         <RevealOnScroll>
-          <img src={discoverSvg} alt="Discover SpaceHUB real-time team chat and collaboration features" className="w-full mx-auto h-auto" loading="lazy" />
+          <img src={discoverSvg} alt="Discover SpaceHUB real-time team chat and collaboration features" width="1200" height="675" decoding="async" className="w-full mx-auto h-auto" loading="lazy" />
         </RevealOnScroll>
 
         {/* LINE 1 DECORATION */}
@@ -512,6 +515,9 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           src={line1}
           alt=""
           aria-hidden="true"
+          width="800"
+          height="100"
+          decoding="async"
           className="absolute hidden lg:block left-1/2 transform -translate-x-1/2 bottom-[-19.8rem] sm:bottom-[-19.8rem] w-[85%] sm:w-[70%] max-w-5xl object-contain pointer-events-none"
           loading="lazy"
         />
@@ -531,7 +537,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
 
           <RevealOnScroll className="text-center order-1 lg:order-2">
-            <img src={card1} alt="SpaceHUB digital workspace preview for team collaboration" className="w-full h-full object-cover rounded-md" loading="lazy" />
+            <img src={card1} alt="SpaceHUB digital workspace preview for team collaboration" width="600" height="400" decoding="async" className="w-full h-full object-cover rounded-md" loading="lazy" />
           </RevealOnScroll>
         </div>
 
@@ -540,6 +546,9 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           src={line2}
           alt=""
           aria-hidden="true"
+          width="800"
+          height="100"
+          decoding="async"
           className="absolute hidden lg:block left-1/2 transform -translate-x-1/2 bottom-[-6rem] sm:bottom-[-8rem] w-[85%] sm:w-[70%] max-w-5xl object-contain pointer-events-none"
           loading="lazy"
         />
@@ -549,7 +558,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 pb-0">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <RevealOnScroll className="text-center order-1 lg:order-1">
-            <img src={card2} alt="Real-time team chat channels and direct messaging interface" className="w-full h-full object-cover rounded-md" loading="lazy" />
+            <img src={card2} alt="Real-time team chat channels and direct messaging interface" width="600" height="400" decoding="async" className="w-full h-full object-cover rounded-md" loading="lazy" />
           </RevealOnScroll>
 
           <RevealOnScroll className="order-2 lg:order-2">
@@ -568,6 +577,9 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           src={line3}
           alt=""
           aria-hidden="true"
+          width="800"
+          height="100"
+          decoding="async"
           className="absolute hidden lg:block left-1/2 transform -translate-x-1/2 bottom-[-6rem] sm:bottom-[-8rem] w-[85%] sm:w-[70%] max-w-5xl object-contain pointer-events-none"
           loading="lazy"
         />
@@ -587,12 +599,16 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
 
           <RevealOnScroll className="text-center order-1 lg:order-2">
-            <img src={card3} alt="Seamless file sharing, voice spaces, and workspace growth" className="w-full h-full object-cover rounded-md" loading="lazy" />
+            <img src={card3} alt="Seamless file sharing, voice spaces, and workspace growth" width="600" height="400" decoding="async" className="w-full h-full object-cover rounded-md" loading="lazy" />
           </RevealOnScroll>
         </div>
       </section>
 
+
+      </main>
+
       {/* FOOTER */}
+
       <footer id="Contact" className="bg-[#F8F9FA] pt-8 text-gray-900 border-t border-gray-200/50">
         <div className="max-w-full mx-auto">
           <RevealOnScroll>

@@ -4,6 +4,8 @@ import { useNavigate, useMatch } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { getProfileSummary, getFriendsList } from '../../../shared/services/API';
+import { SEO } from '../../../shared';
+
 import {
   selectSelectedView,
   selectShowCreate,
@@ -291,7 +293,13 @@ const Dashboard = () => {
 
     return (
       <div className="h-screen flex flex-col overflow-x-hidden bg-[#E6E6E6] md:bg-gray-100">
+        <SEO
+          title={selectedView === 'discover' ? 'Discover Communities' : 'Dashboard'}
+          description="Manage your communities, direct messages, and team conversations inside SpaceHUB."
+          noindex={true}
+        />
         {/* Top Navbar */}
+
         <div className="sticky top-0 z-20 bg-gray-200 border-b border-gray-300 h-14 flex items-center px-4 rounded-b-xl">
           {/* Mobile Hamburger Menu Button */}
           <button

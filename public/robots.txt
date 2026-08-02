@@ -1,0 +1,13 @@
+# SpaceHUB Robots.txt
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /forgot-password
+
+# Guard private authenticated application routes
+Disallow: /dashboard/
+Disallow: /profile/
+
+# Sitemap location
+Sitemap: https://spacehub.monu14.me/sitemap.xml

@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { registerUser, validateRegisterOtp, resendRegisterOtp } from '../../../shared/services/API';
 import { Link, useNavigate } from 'react-router-dom';
 import { showToast } from '../../../shared/services/toast';
+import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
+
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -354,7 +356,14 @@ const SignupPage = () => {
 
   return (
     <>
+      <SEO
+        title="Sign Up"
+        description="Create your SpaceHUB account today. Join thousands of teams collaborating with real-time chat, voice channels, and shared workspaces."
+        keywords="SpaceHUB signup, register account, create workspace, team registration"
+        url="https://spacehub.monu14.me/signup"
+      />
       <style>
+
         {`
           .password-input[type="password"]:not([data-show="true"]):not(:placeholder-shown) {
             -webkit-text-security: disc;

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../../../shared/services/API';
+import { SEO } from '../../../shared';
+
 
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import discoverSvg from '../../../assets/landing/discover.svg';
@@ -293,8 +295,55 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
     }
   };
 
+  const landingSchema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': 'https://spacehub.monu14.me/#website',
+        url: 'https://spacehub.monu14.me/',
+        name: 'SpaceHUB',
+        description: 'A unified workspace for teams to chat, share, and build together.',
+        inLanguage: 'en-US',
+      },
+      {
+        '@type': 'Organization',
+        '@id': 'https://spacehub.monu14.me/#organization',
+        name: 'SpaceHUB',
+        url: 'https://spacehub.monu14.me/',
+        logo: 'https://spacehub.monu14.me/favicon.png',
+        contactPoint: {
+          '@type': 'ContactPoint',
+          telephone: '+91-7037123786',
+          contactType: 'customer support',
+          email: 'hello@spacehub.com',
+        },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        name: 'SpaceHUB',
+        operatingSystem: 'All',
+        applicationCategory: 'BusinessApplication',
+        'offers': {
+          '@type': 'Offer',
+
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        description: 'Work smarter together with organized chat rooms, voice spaces, and shared workspaces.',
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-[#f3f3f3] text-gray-900">
+      <SEO
+        title="Unified Team Workspace & Collaboration Platform"
+        description="Work smarter together with organized chat rooms, voice spaces, and shared workspaces. SpaceHUB brings your team, projects, and files together under one connected platform."
+        keywords="SpaceHUB, team workspace, real-time messaging, group chat, team collaboration, voice chat, workspace software"
+        jsonLd={landingSchema}
+      />
+
 
       {/* HEADER */}
       <header className="w-full sticky top-0 left-0 px-4 sm:px-10 py-4 sm:py-6 flex items-center justify-between bg-white rounded-b-lg shadow-sm z-50">
@@ -454,13 +503,14 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       {/* DISCOVER SECTION */}
       <section id="About" className="max-w-screen relative mb-7 sm:mb-[13rem]">
         <RevealOnScroll>
-          <img src={discoverSvg} alt="Discover SPACEHUB" className="w-full mx-auto h-auto" loading="lazy" />
+          <img src={discoverSvg} alt="Discover SpaceHUB real-time team chat and collaboration features" className="w-full mx-auto h-auto" loading="lazy" />
         </RevealOnScroll>
 
         {/* LINE 1 DECORATION */}
         <img
           src={line1}
-          alt="decorative line"
+          alt=""
+          aria-hidden="true"
           className="absolute hidden lg:block left-1/2 transform -translate-x-1/2 bottom-[-19.8rem] sm:bottom-[-19.8rem] w-[85%] sm:w-[70%] max-w-5xl object-contain pointer-events-none"
           loading="lazy"
         />
@@ -480,14 +530,15 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
 
           <RevealOnScroll className="text-center order-1 lg:order-2">
-            <img src={card1} alt="card1" className="w-full h-full object-cover rounded-md" loading="lazy" />
+            <img src={card1} alt="SpaceHUB digital workspace preview for team collaboration" className="w-full h-full object-cover rounded-md" loading="lazy" />
           </RevealOnScroll>
         </div>
 
         {/* LINE 2 DECORATION */}
         <img
           src={line2}
-          alt="decorative line"
+          alt=""
+          aria-hidden="true"
           className="absolute hidden lg:block left-1/2 transform -translate-x-1/2 bottom-[-6rem] sm:bottom-[-8rem] w-[85%] sm:w-[70%] max-w-5xl object-contain pointer-events-none"
           loading="lazy"
         />
@@ -497,7 +548,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 pb-0">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <RevealOnScroll className="text-center order-1 lg:order-1">
-            <img src={card2} alt="card2" className="w-full h-full object-cover rounded-md" loading="lazy" />
+            <img src={card2} alt="Real-time team chat channels and direct messaging interface" className="w-full h-full object-cover rounded-md" loading="lazy" />
           </RevealOnScroll>
 
           <RevealOnScroll className="order-2 lg:order-2">
@@ -514,7 +565,8 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         {/* LINE 3 DECORATION */}
         <img
           src={line3}
-          alt="decorative line"
+          alt=""
+          aria-hidden="true"
           className="absolute hidden lg:block left-1/2 transform -translate-x-1/2 bottom-[-6rem] sm:bottom-[-8rem] w-[85%] sm:w-[70%] max-w-5xl object-contain pointer-events-none"
           loading="lazy"
         />
@@ -534,10 +586,11 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
 
           <RevealOnScroll className="text-center order-1 lg:order-2">
-            <img src={card3} alt="card3" className="w-full h-full object-cover rounded-md" loading="lazy" />
+            <img src={card3} alt="Seamless file sharing, voice spaces, and workspace growth" className="w-full h-full object-cover rounded-md" loading="lazy" />
           </RevealOnScroll>
         </div>
       </section>
+
       {/* FOOTER */}
       <footer id="Contact" className="bg-[#F8F9FA] pt-8 text-gray-900 border-t border-gray-200/50">
         <div className="max-w-full mx-auto">

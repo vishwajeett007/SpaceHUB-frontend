@@ -7,7 +7,9 @@ import {
   normalizeAuthToken,
 } from '../../../shared/services/authStorage';
 import { showToast } from '../../../shared/services/toast';
+import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
+
 
 const ResetPasswordPage = () => {
   const navigate = useNavigate();
@@ -78,7 +80,13 @@ const ResetPasswordPage = () => {
 
   return (
     <>
+      <SEO
+        title="Reset Password"
+        description="Choose a new password to keep your SpaceHUB account safe."
+        noindex={true}
+      />
       <style>
+
         {`
           .password-input[type="password"]:not([data-show="true"]):not(:placeholder-shown) {
             -webkit-text-security: disc;

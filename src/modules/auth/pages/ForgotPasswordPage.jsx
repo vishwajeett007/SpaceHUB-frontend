@@ -6,7 +6,9 @@ import {
   normalizeAuthToken,
 } from '../../../shared/services/authStorage';
 import { showToast } from '../../../shared/services/toast';
+import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
+
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -156,7 +158,14 @@ const ForgotPasswordPage = () => {
   };
 
   return (
+    <>
+      <SEO
+        title="Forgot Password"
+        description="Reset your SpaceHUB account password securely."
+        url="https://spacehub.monu14.me/forgot-password"
+      />
       <div className="w-screen h-screen flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden lg:fixed lg:top-0 lg:left-0 overflow-hidden text-body">
+
       <AuthSlides />
 
   <div className="flex-1 flex items-center justify-center p-1 lg:p-12 bg-[#EEEEEE] lg:h-full lg:min-h-screen lg:overflow-y-auto lg:rounded-l-4xl rounded-t-[2.25rem] lg:rounded-tr-none sm:rounded-t-[2.25rem] lg:-ml-4 -mt-2 lg:mt-0 relative z-10 lg:shadow-lg shadow-lg overflow-y-auto">
@@ -292,7 +301,10 @@ const ForgotPasswordPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
+
+
 
 export default ForgotPasswordPage;

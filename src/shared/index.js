@@ -8,5 +8,7 @@ export { default as ProfileSetupRoute } from './components/ProfileSetupRoute';
 export { default as LoadingSpinner } from './components/LoadingSpinner';
 export { default as ConfirmationModal } from './components/ConfirmationModal';
 export { default as AppErrorBoundary } from './components/AppErrorBoundary';
+export { default as SEO } from './components/SEO';
 export { showToast, TOAST_EVENT } from './services/toast';
 export * from './services/API';
+

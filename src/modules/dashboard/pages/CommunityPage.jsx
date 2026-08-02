@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { getAllCommunities } from '../../../shared/services/API';
+import { SEO } from '../../../shared';
+
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
 import CommunityLeftPanel from '../components/community/CommunityLeftPanel';
 import CommunityCenterPanel from '../components/community/CommunityCenterPanel';
@@ -149,7 +151,13 @@ const CommunityPage = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-x-hidden bg-[#E6E6E6] md:bg-gray-100">
+      <SEO
+        title={community?.name ? `${community.name} - Community` : 'Community'}
+        description={community?.description || 'SpaceHUB Community workspace'}
+        noindex={true}
+      />
       {/* Top Navbar */}
+
       <div className="sticky top-0 z-20 bg-gray-200 border-b border-gray-300 h-14 flex items-center px-4 rounded-b-xl">
         <div className="flex items-center gap-2">
 

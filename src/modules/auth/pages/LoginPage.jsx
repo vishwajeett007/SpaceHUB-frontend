@@ -4,7 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { normalizeAuthToken } from '../../../shared/services/authStorage';
 import { showToast } from '../../../shared/services/toast';
+import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
+
 
 
 const LoginPage = () => {
@@ -146,7 +148,14 @@ const LoginPage = () => {
 
   return (
     <>
+      <SEO
+        title="Log In"
+        description="Log in to your SpaceHUB account to access your workspace, chat with team members, and collaborate in real-time."
+        keywords="SpaceHUB login, sign in, team login, workspace access"
+        url="https://spacehub.monu14.me/login"
+      />
       <style>
+
         {`
           .password-input[type="password"]:not([data-show="true"]):not(:placeholder-shown) {
             -webkit-text-security: disc;

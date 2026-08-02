@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { joinCommunity } from '../../../shared/services/API';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const JoinCommunityModal = ({ isOpen, onClose, community }) => {
   const { user } = useAuth();
@@ -36,7 +37,7 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
   const handleJoin = async () => {
     if (!community) return;
 
-    const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+    const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
 
     if (!userEmail) {
@@ -144,4 +145,3 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
 };
 
 export default JoinCommunityModal;
-

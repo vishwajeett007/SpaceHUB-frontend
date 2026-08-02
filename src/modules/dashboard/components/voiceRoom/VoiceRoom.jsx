@@ -29,7 +29,7 @@ const VoiceRoom = ({
     }
   }, [participantCount]);
 
-  const Tile = ({ p, index }) => {
+  const Tile = ({ p }) => {
     return (
       <div
         className="relative bg-white rounded-xl overflow-hidden flex flex-col items-center justify-center transition-all duration-300 ease-in-out border-2 border-gray-200 hover:border-blue-400 hover:shadow-xl shadow-md"
@@ -198,7 +198,7 @@ const VoiceRoom = ({
               }}
             >
               {participants.map((p, index) => (
-                <Tile key={p?.id || p?.email || `participant-${index}`} p={p} index={index} />
+                <Tile key={p?.id || p?.email || `participant-${index}`} p={p} />
               ))}
             </div>
           </div>
@@ -255,4 +255,3 @@ const VoiceRoom = ({
 };
 
 export default VoiceRoom;
-

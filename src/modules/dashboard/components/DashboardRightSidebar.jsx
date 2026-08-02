@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { searchUsers, sendFriendRequest } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const DashboardRightSidebar = ({ onClose }) => {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ const DashboardRightSidebar = ({ onClose }) => {
       return;
     }
 
-    const userEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+    const userEmail = user?.email || getStoredUserEmail();
     if (!userEmail) {
       const errorMsg = 'User email not found';
       setSearchError(errorMsg);
@@ -62,7 +63,7 @@ const DashboardRightSidebar = ({ onClose }) => {
   }, []);
 
   const handleAddFriend = async (friendUser) => {
-    const userEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+    const userEmail = user?.email || getStoredUserEmail();
     const friendEmail = friendUser?.email;
 
     if (!userEmail || !friendEmail) {
@@ -91,12 +92,16 @@ const DashboardRightSidebar = ({ onClose }) => {
           ? friendUser.firstName
           : friendUser?.username || friendUser?.email || 'user';
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Request sent to ${friendName}`, type: 'success' } }));
-      } catch {}
+      } catch {
+        // Toast delivery is best-effort.
+      }
     } catch (e) {
       console.error('Failed to send friend request:', e);
       try {
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: e.message || 'Failed to send friend request', type: 'error' } }));
-      } catch {}
+      } catch {
+        // Toast delivery is best-effort.
+      }
     } finally {
       setAddingFriend((prev) => {
         const updated = { ...prev };
@@ -190,7 +195,6 @@ const DashboardRightSidebar = ({ onClose }) => {
                 
                 const friendshipStatus = user.friendshipStatus;
                 const friendId = user?.userId || user?.id;
-                const isNone = friendshipStatus === null || friendshipStatus === undefined || friendshipStatus === 'NONE';
                 const isRequestSent = friendshipStatus === 'REQUEST_SENT';
                 const isFriend = friendshipStatus === 'FRIEND';
                 const isJustRequested = requested[friendId];
@@ -274,5 +278,3 @@ const DashboardRightSidebar = ({ onClose }) => {
 };
 
 export default DashboardRightSidebar;
-
-

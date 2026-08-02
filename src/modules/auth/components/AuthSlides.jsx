@@ -3,8 +3,7 @@ import login0 from '../../../assets/Auth.page/login0.svg';
 import login1 from '../../../assets/Auth.page/login1.svg';
 import login2 from '../../../assets/Auth.page/login2.svg';
 
-const AuthSlides = ({ 
-  title = "Platform to build and grow communities.",
+const AuthSlides = ({
   autoSlide = true,
   slideInterval = 3000 
 }) => {

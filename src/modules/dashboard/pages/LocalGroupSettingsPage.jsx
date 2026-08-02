@@ -5,6 +5,7 @@ import { getLocalGroupSettings, createLocalGroupInvite, getLocalGroupInvites } f
 import InboxModal from '../components/InboxModal';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const LocalGroupSettingsPage = () => {
   const { id } = useParams();
@@ -49,14 +50,17 @@ const LocalGroupSettingsPage = () => {
         setSettings(data);
         
         // Determine user role - for local groups, creator is ADMIN
-        const userEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+        const userEmail = user?.email || getStoredUserEmail();
         if (userEmail) {
           try {
             const cached = sessionStorage.getItem(`localGroupDetails:${id}`);
             const lg = cached ? JSON.parse(cached) : null;
             const creator = lg?.creatorEmail || lg?.createdByEmail || lg?.creator || data?.creatorEmail || data?.createdByEmail || data?.creator || '';
             setCurrentUserRole(creator && creator.toLowerCase() === userEmail.toLowerCase() ? 'ADMIN' : 'MEMBER');
-          } catch {}
+          } catch (cacheError) {
+            console.warn('Failed to read cached local-group details:', cacheError);
+            setCurrentUserRole('MEMBER');
+          }
         }
       } catch (e) {
         setError(e.message || 'Failed to load local-group settings');
@@ -438,5 +442,3 @@ const LocalGroupSettingsPage = () => {
 };
 
 export default LocalGroupSettingsPage;
-
-

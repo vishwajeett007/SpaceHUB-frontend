@@ -8,7 +8,7 @@ const getVoiceWsUrl = () => {
   try {
     const url = new URL(BASE_URL);
     return `${url.origin}/ws`;
-  } catch (e) {
+  } catch {
     return 'https://spacehub.monu14.me/ws';
   }
 };
@@ -25,7 +25,10 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
   const localStreamRef = useRef(null);
   const audioContainerRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
-  const remoteStreamsRef = useRef(new Map()); 
+  const remoteStreamsRef = useRef(new Map());
+  const roomEventHandlerRef = useRef(null);
+  const janusEventHandlerRef = useRef(null);
+  const startPeerConnectionRef = useRef(null);
 
   const log = useCallback((msg) => {
     console.log(`[VoiceRoom] ${msg}`);
@@ -44,13 +47,6 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
       audioContainerRef.current = container;
     }
   }, [enabled, janusRoomId]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, []);
 
   const cleanup = useCallback(() => {
     log('Cleaning up voice room connection...');
@@ -84,6 +80,9 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
     setIsConnected(false);
     setParticipants([]);
   }, [log]);
+
+  // Cleanup on unmount.
+  useEffect(() => cleanup, [cleanup]);
 
   const connectWebSocket = useCallback(() => {
     if (!janusRoomId || !sessionId || !handleId || !userId) {
@@ -124,7 +123,7 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
           try {
             const event = JSON.parse(message.body);
             log(`📢 Room Event: ${event.type} - ${event.userId}`);
-            handleRoomEvent(event);
+            roomEventHandlerRef.current?.(event);
           } catch (e) {
             log(`Error parsing room event: ${e.message}`);
           }
@@ -134,7 +133,7 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
         client.subscribe(`/topic/room/${janusRoomId}/answer/${userId}`, (message) => {
           try {
             const resp = JSON.parse(message.body);
-            handleJanusEvent(resp);
+            janusEventHandlerRef.current?.(resp);
           } catch (e) {
             log(`Error parsing Janus event: ${e.message}`);
           }
@@ -152,7 +151,7 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
         });
 
         log('🚀 Registration sent. Starting WebRTC connection...');
-        startPeerConnection();
+        startPeerConnectionRef.current?.();
       },
       onStompError: (frame) => {
         log(`❌ STOMP error: ${frame.headers['message'] || 'Unknown error'}`);
@@ -181,13 +180,15 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
         const normalized = typeof identifier === 'string' ? identifier.toLowerCase() : String(identifier).toLowerCase();
         const stored = usernames[normalized];
         if (stored) return stored;
-      } catch {}
+      } catch (parseError) {
+        log(`Unable to read cached community usernames: ${parseError.message}`);
+      }
     }
     if (identifier.includes && identifier.includes('@')) {
       return identifier.split('@')[0];
     }
     return identifier;
-  }, [communityId]);
+  }, [communityId, log]);
 
   const handleRoomEvent = useCallback((event) => {
     if (event.type === 'joined') {
@@ -395,6 +396,12 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
     }
   }, [janusRoomId, userId, log]);
 
+  useEffect(() => {
+    roomEventHandlerRef.current = handleRoomEvent;
+    janusEventHandlerRef.current = handleJanusEvent;
+    startPeerConnectionRef.current = startPeerConnection;
+  }, [handleJanusEvent, handleRoomEvent, startPeerConnection]);
+
   const toggleMute = useCallback(() => {
     if (localStreamRef.current) {
       const audioTracks = localStreamRef.current.getAudioTracks();
@@ -449,23 +456,24 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
       // Clear participants when switching to a new room
       if (previousParamsKey && paramsKey !== previousParamsKey) {
         log('Room params changed, clearing participants before connecting');
-        setParticipants([]);
+        cleanup();
       }
       connectionParamsRef.current = currentParams;
       connectWebSocket();
-    } else if (!enabled) {
+    } else {
       connectionParamsRef.current = null;
       cleanup();
     }
-
-    return () => {
-      if (!enabled) {
-        connectionParamsRef.current = null;
-        cleanup();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, janusRoomId, sessionId, handleId, userId]);
+  }, [
+    cleanup,
+    connectWebSocket,
+    enabled,
+    handleId,
+    janusRoomId,
+    log,
+    sessionId,
+    userId,
+  ]);
 
   return {
     isConnected,
@@ -476,4 +484,3 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
     leave
   };
 };
-

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { registerUser, validateRegisterOtp, resendRegisterOtp } from '../../../shared/services/API';
 import { Link, useNavigate } from 'react-router-dom';
+import { showToast } from '../../../shared/services/toast';
 import AuthSlides from '../components/AuthSlides';
 
 const SignupPage = () => {
@@ -22,18 +23,10 @@ const SignupPage = () => {
   const [invalidOtp, setInvalidOtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [registrationToken, setRegistrationToken] = useState('');
-  const [error, setError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const debounceRefs = useRef({});
   const throttleRefs = useRef({ requestOtp: 0, verifyOtp: 0, resendOtp: 0 });
   const timerIntervalRef = useRef(null);
-
-  const showToast = (message, type = 'info') => {
-    if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent('toast', {
-      detail: { message, type }
-    }));
-  };
 
   const runDebounced = (key, fn, delay = 300) => {
     if (debounceRefs.current[key]) {
@@ -54,8 +47,9 @@ const SignupPage = () => {
   };
 
   useEffect(() => {
+    const debounceTimers = debounceRefs.current;
     return () => {
-      Object.values(debounceRefs.current).forEach((timer) => clearTimeout(timer));
+      Object.values(debounceTimers).forEach((timer) => clearTimeout(timer));
     };
   }, []);
 
@@ -185,7 +179,6 @@ const SignupPage = () => {
 
   const handleStepOneSubmit = (e) => {
     e.preventDefault();
-    setError('');
 
     const trimmedFirstName = formData.firstName.trim();
     const trimmedLastName = formData.lastName.trim();
@@ -255,7 +248,6 @@ const SignupPage = () => {
       return;
     }
     setLoading(true);
-    setError('');
     const { firstName, lastName, email, password } = formData;
     const payload = { firstName, lastName, email, password };
     registerUser(payload)
@@ -297,10 +289,9 @@ const SignupPage = () => {
     }
     setOtpError(false);
     setLoading(true);
-    setError('');
     setInvalidOtp(false);
     try {
-      const data = await validateRegisterOtp({
+      await validateRegisterOtp({
         identifier: formData.email,
         otp: onlyDigits,
         type: 'REGISTRATION',
@@ -311,7 +302,14 @@ const SignupPage = () => {
       try {
         sessionStorage.setItem('lastIdentifier', formData.email);
         sessionStorage.setItem('lastEmail', formData.email);
-      } catch { }
+      } catch (storageError) {
+        console.warn('Unable to remember the new account identifier:', storageError);
+      }
+
+      sessionStorage.removeItem('registrationToken');
+      sessionStorage.removeItem('signupEmail');
+      sessionStorage.removeItem('signupFirstName');
+      sessionStorage.removeItem('signupLastName');
 
       localStorage.setItem('profileSetupRequired', 'true');
       showToast('Account created successfully! Please log in to complete your profile setup.', 'success');
@@ -332,7 +330,6 @@ const SignupPage = () => {
     e.preventDefault();
     if (!registrationToken || !formData.email || resendTimer > 0) return;
     setLoading(true);
-    setError('');
     resendRegisterOtp(formData.email, registrationToken)
       .then(() => {
         showToast('OTP resent successfully!', 'success');
@@ -350,7 +347,6 @@ const SignupPage = () => {
     e.preventDefault();
     setStep(1);
     setOtp('');
-    setError('');
     setInvalidOtp(false);
     setOtpError(false);
     setResendTimer(0);

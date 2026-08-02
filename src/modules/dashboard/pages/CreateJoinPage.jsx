@@ -11,6 +11,7 @@ import { addCommunity, addLocalGroup } from '../../../shared/store/slices/dashbo
 import MobileHamburgerMenu from '../components/MobileHamburgerMenu';
 import InboxModal from '../components/InboxModal';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const CreateJoinPage = () => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ const CreateJoinPage = () => {
   });
   const [loading, setLoading] = useState(false);
 
-  const storedEmail = (JSON.parse(sessionStorage.getItem('userData')) || {})?.email || '';
+  const storedEmail = getStoredUserEmail();
   const userEmail = (user && user.email) || storedEmail || '';
 
   // Listen for openInbox event
@@ -351,4 +352,3 @@ const CreateJoinPage = () => {
 };
 
 export default CreateJoinPage;
-

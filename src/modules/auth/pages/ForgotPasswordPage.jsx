@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { requestForgotPassword, validateOtp, resendForgotOtp } from '../../../shared/services/API';
+import {
+  clearPasswordResetState,
+  normalizeAuthToken,
+} from '../../../shared/services/authStorage';
+import { showToast } from '../../../shared/services/toast';
 import AuthSlides from '../components/AuthSlides';
 
 const ForgotPasswordPage = () => {
@@ -13,17 +18,11 @@ const ForgotPasswordPage = () => {
   const [step, setStep] = useState('email');
   const [forgotToken, setForgotToken] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const timerIntervalRef = useRef(null);
 
   const hasEmoji = (value) => /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/u.test(value || '');
   const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !hasEmoji(value);
-  const validateIdentifier = (value) => {
-    if (!value) return false;
-    return isValidEmail(value);
-  };
-
   const isMobile = () => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth < 1024; 
@@ -57,36 +56,36 @@ const ForgotPasswordPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setError('');
     if (step === 'email') {
       const emailLike = isValidEmail(identifier);
       if (!emailLike) {
         setIdentifierError(true);
         if (isMobile()) {
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: 'Enter a valid email address.', type: 'error' }
-          }));
+          showToast('Enter a valid email address.', 'error');
         }
         return;
       }
       const identifierToSend = identifier.trim();
+      clearPasswordResetState();
       setLoading(true);
       requestForgotPassword(identifierToSend)
         .then((res) => {
-          const token = (res && res.data) ? res.data : '';
+          const token = normalizeAuthToken(
+            res?.data?.tempToken || res?.data?.token || res?.tempToken || res?.token || res?.data
+          );
+          if (!token) {
+            throw new Error('The password-reset request did not return a temporary token.');
+          }
+          setIdentifier(identifierToSend);
           setForgotToken(token);
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: 'OTP sent!', type: 'success' }
-          }));
+          showToast('OTP sent!', 'success');
           setResendTimer(30); 
           setStep('otp');
         })
         .catch((err) => {
           console.error('Failed to send OTP:', err.message);
           const errorMessage = err.message || 'Failed to send OTP. Please try again.';
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: errorMessage, type: 'error' }
-          }));
+          showToast(errorMessage, 'error');
         })
         .finally(() => setLoading(false));
     } else {
@@ -98,20 +97,17 @@ const ForgotPasswordPage = () => {
       setLoading(true);
       validateOtp({ identifier, otp })
         .then((res) => {
-          try {
-            sessionStorage.setItem('resetIdentifier', identifier);
-           
-            if (isValidEmail(identifier)) {
-              sessionStorage.setItem('resetEmail', identifier);
-            }
-            const token = (res && res.data && res.data.accessToken) ? res.data.accessToken : (res && res.accessToken);
-            if (token) sessionStorage.setItem('resetAccessToken', token);
-          } catch {
-            // error ke liye
+          const token = normalizeAuthToken(
+            res?.data?.accessToken || res?.accessToken || res?.data?.token || res?.token
+          );
+          if (!token) {
+            throw new Error('OTP verification did not return a password-reset token.');
           }
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: 'OTP verified successfully!', type: 'success' }
-          }));
+
+          sessionStorage.setItem('resetIdentifier', identifier);
+          sessionStorage.setItem('resetEmail', identifier);
+          sessionStorage.setItem('resetAccessToken', token);
+          showToast('OTP verified successfully!', 'success');
           navigate('/reset');
         })
         .catch((err) => {
@@ -120,9 +116,7 @@ const ForgotPasswordPage = () => {
           if (err.message.includes('Invalid') || err.message.includes('invalid') || err.message.includes('OTP')) {
             setInvalidOtp(true);
           }
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: errorMessage, type: 'error' }
-          }));
+          showToast(errorMessage, 'error');
         })
         .finally(() => setLoading(false));
     }
@@ -132,20 +126,15 @@ const ForgotPasswordPage = () => {
     e.preventDefault();
     if (!forgotToken || resendTimer > 0) return;
     setLoading(true);
-    setError('');
     resendForgotOtp(forgotToken)
       .then(() => {
-        window.dispatchEvent(new CustomEvent('toast', {
-          detail: { message: 'OTP resent successfully!', type: 'success' }
-        }));
+        showToast('OTP resent successfully!', 'success');
         setResendTimer(30); 
       })
       .catch((err) => {
         console.error('Failed to resend OTP:', err.message);
         const errorMessage = err.message || 'Failed to resend OTP. Please try again.';
-        window.dispatchEvent(new CustomEvent('toast', {
-          detail: { message: errorMessage, type: 'error' }
-        }));
+        showToast(errorMessage, 'error');
       })
       .finally(() => setLoading(false));
   };
@@ -157,11 +146,6 @@ const ForgotPasswordPage = () => {
     setInvalidOtp(false);
     setOtpError(false);
     setResendTimer(0); 
-  };
-
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
   };
 
   const handleEmailChange = (e) => {
@@ -251,7 +235,7 @@ const ForgotPasswordPage = () => {
                         setOtpError(false);
                       }
                     }}
-                    className={`w-full px-3 lg:px-4 py-2 lg:py-3 pr-12 text-sm lg:text-base border-2 rounded-md ring-primary transition-colors bg-gray-50 placeholder-[#ADADAD] h-[2.2rem] lg:h-[2.75rem] max-w-[30.875rem] ${invalidOtp ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
+                    className={`w-full px-3 lg:px-4 py-2 lg:py-3 pr-12 text-sm lg:text-base border-2 rounded-md ring-primary transition-colors bg-gray-50 placeholder-[#ADADAD] h-[2.2rem] lg:h-[2.75rem] max-w-[30.875rem] ${invalidOtp || otpError ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                     placeholder="Enter otp"
                   />
                   {invalidOtp && (

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getCommunityMembers, getLocalGroupMembers, removeCommunityMember } from '../../../../shared/services/API';
 import { useAuth } from '../../../../shared/contexts/AuthContextContext';
+import { getStoredUserEmail } from '../../../../shared/services/authStorage';
 
 const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }) => {
   const { user } = useAuth();
@@ -59,7 +60,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
       setMembers(list);
 
       // Find current user's role
-      const userEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+      const userEmail = user?.email || getStoredUserEmail();
       if (userEmail) {
         const me = list.find((m) => {
           const memberEmail = m.email || m.username || '';
@@ -91,7 +92,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
   const handleRemoveMember = async (member) => {
     console.log('handleRemoveMember called with:', member);
     const userEmail = member?.email || member?.username;
-    const requesterEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+    const requesterEmail = user?.email || getStoredUserEmail();
 
     console.log('Remove member params:', { userEmail, requesterEmail, communityId });
 
@@ -124,16 +125,19 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         });
       });
 
-      try {
-        window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Removed ${member?.username || member?.name || userEmail}`, type: 'success' } }));
-      } catch {}
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: {
+          message: `Removed ${member?.username || member?.name || userEmail}`,
+          type: 'success'
+        }
+      }));
     } catch (e) {
       console.error('Failed to remove member - Full error:', e);
       console.error('Error message:', e.message);
       console.error('Error stack:', e.stack);
-      try {
-        window.dispatchEvent(new CustomEvent('toast', { detail: { message: e.message || 'Failed to remove member', type: 'error' } }));
-      } catch {}
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { message: e.message || 'Failed to remove member', type: 'error' }
+      }));
     } finally {
       setRemovingMember((prev) => {
         const updated = { ...prev };
@@ -161,7 +165,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
   };
 
   const isAdmin = currentUserRole === 'ADMIN';
-  const currentUserEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+  const currentUserEmail = user?.email || getStoredUserEmail();
 
   // Shared content component
   const PanelContent = () => (

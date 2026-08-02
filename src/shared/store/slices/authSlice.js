@@ -1,5 +1,13 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { getCookie } from '../../services/API';
+import {
+  clearLegacyLocalAuth,
+  clearStoredAuth,
+  getStoredAuthToken,
+  normalizeAuthToken,
+  persistAuthSession,
+  readStoredUser,
+} from '../../services/authStorage';
+
 const initialState = {
   user: null,
   token: null,
@@ -16,26 +24,26 @@ const authSlice = createSlice({
     },
     checkAuthStatus: (state) => {
       try {
-        let token = sessionStorage.getItem('accessToken') || getCookie('token');
-        if (token === 'undefined' || token === 'null') {
-          token = null;
-        }
-        const userData = sessionStorage.getItem('userData');
+        clearLegacyLocalAuth();
+        const token = getStoredAuthToken();
+        const userData = readStoredUser();
 
-        if (userData) {
-          const parsedUserData = JSON.parse(userData);
-          state.user = parsedUserData;
+        if (token && userData) {
+          // Restore a cookie-backed token into session storage so API requests
+          // and auth state continue to use the same source of truth.
+          persistAuthSession(userData, token);
+          state.user = userData;
           state.token = token;
           state.isAuthenticated = true;
         } else {
+          clearStoredAuth();
           state.user = null;
           state.token = null;
           state.isAuthenticated = false;
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('userData');
+        clearStoredAuth();
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
@@ -44,41 +52,48 @@ const authSlice = createSlice({
       }
     },
     login: (state, action) => {
-      let { userData, token } = action.payload;
-      if (token === 'undefined' || token === 'null') {
-        token = null;
-      }
+      const { userData, token } = action.payload;
+      const normalizedToken = normalizeAuthToken(token);
       try {
-        if (token) {
-          sessionStorage.setItem('accessToken', token);
-          state.token = token;
+        if (persistAuthSession(userData, normalizedToken)) {
+          state.user = userData;
+          state.token = normalizedToken;
+          state.isAuthenticated = true;
+        } else {
+          clearStoredAuth();
+          state.user = null;
+          state.token = null;
+          state.isAuthenticated = false;
         }
-        sessionStorage.setItem('userData', JSON.stringify(userData));
-        state.user = userData;
-        state.isAuthenticated = true;
       } catch (error) {
         console.error('Error saving auth data:', error);
-      }
-    },
-    logout: (state) => {
-      try {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('userData');
-        sessionStorage.removeItem('resetEmail');
-        sessionStorage.removeItem('resetAccessToken');
-        localStorage.removeItem('profileSetupRequired');
+        clearStoredAuth();
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
+      }
+    },
+    logout: (state, action) => {
+      try {
+        clearStoredAuth({ includeResetState: true });
+        if (!action.payload?.preserveProfileSetup) {
+          localStorage.removeItem('profileSetupRequired');
+        }
       } catch (error) {
         console.error('Error clearing auth data:', error);
       }
+      // Local storage can be unavailable; logout must still clear in-memory access.
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
     },
     updateUser: (state, action) => {
       try {
         const updatedUserData = action.payload;
-        sessionStorage.setItem('userData', JSON.stringify(updatedUserData));
-        state.user = updatedUserData;
+        if (state.isAuthenticated && state.token && updatedUserData) {
+          sessionStorage.setItem('userData', JSON.stringify(updatedUserData));
+          state.user = updatedUserData;
+        }
       } catch (error) {
         console.error('Error updating user data:', error);
       }
@@ -94,4 +109,3 @@ export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectAuthLoading = (state) => state.auth.loading;
 
 export default authSlice.reducer;
-

@@ -2,37 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { loginUser, getProfileSummary } from '../../../shared/services/API';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import { normalizeAuthToken } from '../../../shared/services/authStorage';
+import { showToast } from '../../../shared/services/toast';
 import AuthSlides from '../components/AuthSlides';
-import Cookies from "js-cookie";
 
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, updateUser } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [identifierError, setIdentifierError] = useState(false);
-  const [passwordError, setPasswordError] = useState(false);
   const [invalidCredentials, setInvalidCredentials] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const debounceRefs = useRef({});
   const throttleRefs = useRef({ login: 0 });
-
-  const showToast = (message, type = 'info') => {
-    if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent('toast', {
-      detail: { message, type }
-    }));
-  };
-
-  const runDebounced = (key, fn, delay = 300) => {
-    if (debounceRefs.current[key]) {
-      clearTimeout(debounceRefs.current[key]);
-    }
-    debounceRefs.current[key] = setTimeout(fn, delay);
-  };
 
   const shouldThrottleAction = (key, delay = 2000, message) => {
     const now = Date.now();
@@ -51,10 +35,9 @@ const LoginPage = () => {
       if (savedIdentifier) {
         setIdentifier(savedIdentifier);
       }
-    } catch { }
-    return () => {
-      Object.values(debounceRefs.current).forEach((timer) => clearTimeout(timer));
-    };
+    } catch (storageError) {
+      console.warn('Unable to restore the last login identifier:', storageError);
+    }
   }, []);
 
   const hasEmoji = (value) => /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/u.test(value || '');
@@ -68,7 +51,6 @@ const LoginPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setInvalidCredentials(false);
-    setError('');
     if (shouldThrottleAction('login', 2000, 'Please wait before trying again.')) {
       return;
     }
@@ -90,7 +72,16 @@ const LoginPage = () => {
         const responseEmail = (data?.email || data?.data?.email) ? String(data?.email || data?.data?.email) : undefined;
         const effectiveEmail = resolvedUser?.email || responseEmail || (emailLike ? identifierToSend : undefined);
         const userWithId = { ...resolvedUser, email: effectiveEmail || resolvedUser?.email || responseEmail || '' };
-        const token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
+        const token = normalizeAuthToken(
+          data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token
+        );
+
+        if (!token) {
+          throw new Error('Login succeeded without an access token. Please try again.');
+        }
+
+        // Persist the valid token before loading the authenticated profile.
+        login(userWithId, token);
 
 
         try {
@@ -103,6 +94,7 @@ const LoginPage = () => {
             if (profileData?.data?.username) {
               userWithId.username = profileData.data.username;
             }
+            updateUser(userWithId);
           }
         } catch (error) {
           console.error('Failed to fetch profile summary:', error);
@@ -110,14 +102,14 @@ const LoginPage = () => {
         }
 
         const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
-        login(userWithId, token);
-        Cookies.set("token", token);
         try {
           sessionStorage.setItem('lastIdentifier', identifierToSend);
           if (emailLike) {
             sessionStorage.setItem('lastEmail', identifierToSend);
           }
-        } catch { }
+        } catch (storageError) {
+          console.warn('Unable to remember the login identifier:', storageError);
+        }
         showToast('Login successful!', 'success');
         if (profileSetupRequired) {
           navigate('/profile/setup', { replace: true });
@@ -136,23 +128,12 @@ const LoginPage = () => {
       .finally(() => setLoading(false));
   };
 
-  const validateIdentifier = (value) => {
-    if (!value) return false;
-    return isValidEmail(value);
-  };
-
   const handleIdentifierChange = (e) => {
     const value = e.target.value;
     setIdentifier(value);
     setInvalidCredentials(false);
-    setError('');
 
     setIdentifierError(false);
-  };
-
-  const validatePassword = (password) => {
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[#@!%&])(?=.*[0-9])(?!.*\s).{8,}$/;
-    return passwordRegex.test(password) && !hasEmoji(password);
   };
 
   const handlePasswordChange = (e) => {
@@ -161,9 +142,6 @@ const LoginPage = () => {
     value = value.replace(/[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/gu, '');
     setPassword(value);
     setInvalidCredentials(false);
-    setError('');
-
-    setPasswordError(false);
   };
 
   return (

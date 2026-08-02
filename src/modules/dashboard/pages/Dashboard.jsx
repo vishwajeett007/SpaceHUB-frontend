@@ -24,6 +24,7 @@ import CreatePopup from '../components/CreatePopup';
 import DashboardLeftSidebar from '../components/DashboardLeftSidebar';
 import InboxModal from '../components/InboxModal';
 import MobileHamburgerMenu from '../components/MobileHamburgerMenu';
+import { readStoredUser } from '../../../shared/services/authStorage';
 
 const Dashboard = () => {
   const { logout, user, updateUser } = useAuth();
@@ -107,7 +108,7 @@ const Dashboard = () => {
       }
     }
 
-    const storedUserData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+    const storedUserData = readStoredUser() || {};
     const requesterEmail = user?.email || storedUserData?.email || '';
 
     if (!requesterEmail) {
@@ -338,7 +339,7 @@ const Dashboard = () => {
               title='Profile Settings'
               className="w-10 h-10 rounded-md bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
               {(() => {
-                const sessionUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
+                const sessionUser = readStoredUser() || {};
                 const avatarUrl = user?.avatarUrl || sessionUser?.avatarUrl;
                 const displayName = user?.username || sessionUser?.username || 'U';
                 return avatarUrl ? (

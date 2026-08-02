@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getFriendsList, removeFriend } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 // Helper function to format name - prioritizes username
 const formatFriendName = (friend) => {
@@ -68,7 +69,7 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
       setLoading(true);
       setError('');
       
-      const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+      const storedEmail = getStoredUserEmail();
       const userEmail = user?.email || storedEmail;
       
       if (!userEmail) {
@@ -77,7 +78,6 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
         return;
       }
       
-      let hasCachedData = false;
       try {
         const cachedFriends = sessionStorage.getItem('friendsList');
         if (cachedFriends) {
@@ -86,7 +86,6 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
           if (cachedUserEmail === userEmail && Array.isArray(parsedFriends) && parsedFriends.length > 0) {
             setFriends(parsedFriends);
             setFilteredFriends(parsedFriends);
-            hasCachedData = true;
             setLoading(false);
 
           }
@@ -187,7 +186,7 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
   const handleConfirmRemove = async () => {
     if (!friendToRemove) return;
 
-    const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+    const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
     const friendEmail = friendToRemove?.email;
 

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authenticatedFetch, BASE_URL, uploadProfileImage as uploadProfileImageApi, updateProfile } from '../../../shared/services/API';
+import { uploadProfileImage as uploadProfileImageApi, updateProfile } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import { showToast } from '../../../shared/services/toast';
 
 const presetAvatarUrls = [
   '/avatars/avatar-1.png',
@@ -58,22 +59,8 @@ const ProfileSetupPage = () => {
   // interests removed per design
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [email, setEmail] = useState('');
   const [dateOfBirthError, setDateOfBirthError] = useState('');
   const [usernameError, setUsernameError] = useState('');
-
-  useEffect(() => {
-    
-    let userDataRaw = sessionStorage.getItem('userData');
-    if (userDataRaw) {
-      try {
-        const data = JSON.parse(userDataRaw);
-        setEmail(data?.email || '');
-      } catch {
-        // JSON parse error ko ignore ke liye
-      }
-    }
-  }, []);
 
   const onPickFile = () => fileInputRef.current?.click();
 
@@ -83,9 +70,7 @@ const ProfileSetupPage = () => {
     if (file.size > MAX_UPLOAD_BYTES) {
       const errorMessage = 'Image must be 2MB or smaller';
       setError(errorMessage);
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: errorMessage, type: 'error' }
-      }));
+      showToast(errorMessage, 'error');
       e.target.value = '';
       return;
     }
@@ -98,9 +83,7 @@ const ProfileSetupPage = () => {
 
   const handleRemoveUploadedImage = () => {
     if (uploadPreview && uploadPreview.startsWith('blob:')) {
-      try {
-        URL.revokeObjectURL(uploadPreview);
-      } catch {}
+      URL.revokeObjectURL(uploadPreview);
     }
     setUploadFile(null);
     setUploadPreview(defaultAvatarUrl);
@@ -257,43 +240,6 @@ const ProfileSetupPage = () => {
       navigate('/dashboard');
     } catch (e) {
       setError(e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSkip = async () => {
-    setError('');
-    setSaving(true);
-    try {
-      const randomUrl = presetAvatarUrls[Math.floor(Math.random() * presetAvatarUrls.length)];
-      setSelectedAvatarUrl(randomUrl);
-      setUploadFile(null);
-      setUploadPreview(randomUrl);
-      await uploadAvatar({ avatarUrl: randomUrl });
-      const finalUsername = username && username.trim() ? username.trim() : `user${Math.floor(1000 + Math.random()*9000)}`;
-      setUsername(finalUsername);
-      await setUserName(finalUsername, dateOfBirth || null);
-      const sessionUserRaw = sessionStorage.getItem('userData');
-      let sessionUser = {};
-      try {
-        sessionUser = sessionUserRaw ? JSON.parse(sessionUserRaw) : {};
-      } catch {
-        sessionUser = {};
-      }
-
-      const updatedUser = {
-        ...sessionUser,
-        username: finalUsername,
-        avatarUrl: randomUrl,
-      };
-
-      sessionStorage.setItem('userData', JSON.stringify(updatedUser));
-      localStorage.setItem('profileSetupRequired', 'false');
-      updateUser?.(updatedUser);
-      navigate('/dashboard');
-    } catch (e) {
-      setError(e.message || 'Failed to complete setup');
     } finally {
       setSaving(false);
     }
@@ -499,6 +445,4 @@ const ProfileSetupPage = () => {
 };
 
 export default ProfileSetupPage;
-
-
 

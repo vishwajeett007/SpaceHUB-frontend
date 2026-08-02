@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { acceptCommunityInvite, acceptLocalGroupInvite, joinLocalGroup } from '../../../shared/services/API';
+import { acceptCommunityInvite, acceptLocalGroupInvite } from '../../../shared/services/API';
+import { readStoredUser } from '../../../shared/services/authStorage';
 
 const CreateJoin = ({ onBack, onSend, onSuccess }) => {
   const [inviteLink, setInviteLink] = useState('');
@@ -55,7 +56,7 @@ const CreateJoin = ({ onBack, onSend, onSuccess }) => {
     setError('');
 
     try {
-      const userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+      const userData = readStoredUser() || {};
       const userEmail = userData?.email;
 
       if (!userEmail) {
@@ -166,5 +167,3 @@ const CreateJoin = ({ onBack, onSend, onSuccess }) => {
 };
 
 export default CreateJoin;
-
-

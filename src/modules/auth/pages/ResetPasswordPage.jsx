@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import {
+  clearPasswordResetState,
+  normalizeAuthToken,
+} from '../../../shared/services/authStorage';
+import { showToast } from '../../../shared/services/toast';
 import AuthSlides from '../components/AuthSlides';
 
 const ResetPasswordPage = () => {
@@ -14,7 +19,6 @@ const ResetPasswordPage = () => {
   const [passwordError, setPasswordError] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const validatePassword = (value) => {
     const passwordRegex = /^(?=.*[A-Z])(?=.*[#@!%&])(?=.*[0-9])(?!.*\s).{8,}$/;
@@ -39,29 +43,34 @@ const ResetPasswordPage = () => {
     e.preventDefault();
     if (!passwordError && !passwordMismatch && password && confirmPassword) {
       setLoading(true);
-      setError('');
       const identifier = sessionStorage.getItem('resetIdentifier') || sessionStorage.getItem('resetEmail') || '';
       const tempToken = sessionStorage.getItem('resetAccessToken') || '';
       resetPassword({ identifier, newPassword: password, tempToken })
         .then((data) => {
-          const token = data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token;
+          const token = normalizeAuthToken(
+            data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token
+          );
           const userObj = data?.user || data?.data?.user || { email: identifier };
-          login(userObj, token);
           try {
             sessionStorage.setItem('lastIdentifier', identifier);
             sessionStorage.setItem('lastEmail', identifier);
-          } catch {}
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: 'Password reset successfully!', type: 'success' }
-          }));
-          navigate('/dashboard');
+          } catch (storageError) {
+            console.warn('Unable to remember the reset-password identifier:', storageError);
+          }
+          clearPasswordResetState();
+          showToast('Password reset successfully!', 'success');
+
+          if (token) {
+            login(userObj, token);
+            navigate('/dashboard', { replace: true });
+          } else {
+            navigate('/login', { replace: true });
+          }
         })
         .catch((err) => {
           console.error('Reset failed:', err.message);
           const errorMessage = err.message || 'Failed to reset password. Please try again.';
-          window.dispatchEvent(new CustomEvent('toast', {
-            detail: { message: errorMessage, type: 'error' }
-          }));
+          showToast(errorMessage, 'error');
         })
         .finally(() => setLoading(false));
     }

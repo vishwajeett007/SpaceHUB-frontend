@@ -2,12 +2,15 @@ import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AuthContext } from './AuthContextContext';
 import webSocketService from '../services/WebSocketService';
+import { AUTH_UNAUTHORIZED_EVENT } from '../services/authEvents';
+import { showToast } from '../services/toast';
 import { 
   checkAuthStatus, 
   login, 
   logout, 
   updateUser,
   selectUser, 
+  selectToken,
   selectIsAuthenticated, 
   selectAuthLoading 
 } from '../store/slices/authSlice';
@@ -15,13 +18,34 @@ import {
 export const AuthProvider = ({ children }) => {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
+  const token = useSelector(selectToken);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const loading = useSelector(selectAuthLoading);
   const previousUserEmailRef = useRef(null);
+  const unauthorizedHandledRef = useRef(false);
 
   useEffect(() => {
     dispatch(checkAuthStatus());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (isAuthenticated) unauthorizedHandledRef.current = false;
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      if (!isAuthenticated || unauthorizedHandledRef.current) return;
+
+      unauthorizedHandledRef.current = true;
+      webSocketService.disconnect();
+      previousUserEmailRef.current = null;
+      dispatch(logout({ preserveProfileSetup: true }));
+      showToast('Your session has expired. Please log in again.', 'error');
+    };
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, [dispatch, isAuthenticated]);
 
   // WebSocket connection management - persists across entire app
   useEffect(() => {
@@ -76,7 +100,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const getToken = () => {
-    return sessionStorage.getItem('accessToken');
+    return token;
   };
 
   const checkAuth = () => {

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../../../shared/services/API';
 
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
-import bgPattern from '../../../assets/landing/bg 1.svg';
 import discoverSvg from '../../../assets/landing/discover.svg';
 import card1 from '../../../assets/landing/card1.svg';
 import card2 from '../../../assets/landing/card2.svg';

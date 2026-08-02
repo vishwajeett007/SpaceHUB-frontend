@@ -7,6 +7,7 @@ import MobileHamburgerMenu from '../components/MobileHamburgerMenu';
 import DashboardRightSidebar from '../components/DashboardRightSidebar';
 import InboxModal from '../components/InboxModal';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const DirectMessagePage = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const DirectMessagePage = () => {
   const [recentConversations, setRecentConversations] = useState([]);
   const searchInputRef = useRef(null);
 
-  const userEmail = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+  const userEmail = user?.email || getStoredUserEmail();
 
   // Auto-focus search input when component mounts
   useEffect(() => {
@@ -380,4 +381,3 @@ const DirectMessagePage = () => {
 };
 
 export default DirectMessagePage;
-

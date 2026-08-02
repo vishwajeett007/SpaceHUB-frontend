@@ -1,20 +1,22 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextContext';
+import { normalizeAuthToken } from '../services/authStorage';
 import LoadingSpinner from './LoadingSpinner';
 
 const ResetPasswordRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <LoadingSpinner message="Checking authentication..." />;
   }
 
-  const hasResetToken = sessionStorage.getItem('resetAccessToken') && 
-    (sessionStorage.getItem('resetEmail') || sessionStorage.getItem('resetIdentifier'));
+  const resetToken = normalizeAuthToken(sessionStorage.getItem('resetAccessToken'));
+  const resetIdentifier = sessionStorage.getItem('resetEmail') || sessionStorage.getItem('resetIdentifier');
+  const hasResetToken = Boolean(resetToken && resetIdentifier);
 
-  if (!hasResetToken && !isAuthenticated) {
+  if (!hasResetToken) {
     return <Navigate to="/forgot-password" state={{ from: location }} replace />;
   }
 
@@ -22,4 +24,3 @@ const ResetPasswordRoute = ({ children }) => {
 };
 
 export default ResetPasswordRoute;
-

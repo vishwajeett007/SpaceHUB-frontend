@@ -9,6 +9,7 @@ import CommunityLeftPanel from '../components/community/CommunityLeftPanel';
 import CommunityCenterPanel from '../components/community/CommunityCenterPanel';
 import CommunityRightPanel from '../components/community/CommunityRightPanel';
 import InboxModal from '../components/InboxModal';
+import { getStoredUserEmail, readStoredUser } from '../../../shared/services/authStorage';
 
 const LocalGroupPage = () => {
   const { id } = useParams();
@@ -34,7 +35,7 @@ const LocalGroupPage = () => {
       setLoading(true);
       setError('');
       
-      const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+      const storedEmail = getStoredUserEmail();
       const userEmail = user?.email || storedEmail;
       
       if (!userEmail) {
@@ -253,7 +254,7 @@ const LocalGroupPage = () => {
               title='Profile Settings'
               className="w-10 h-10 rounded-md bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
               {(() => {
-                const sessionUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
+                const sessionUser = readStoredUser() || {};
                 const avatarUrl = user?.avatarUrl || sessionUser?.avatarUrl;
                 const displayName = user?.username || sessionUser?.username || 'U';
                 return avatarUrl ? (
@@ -358,4 +359,3 @@ const LocalGroupPage = () => {
 };
 
 export default LocalGroupPage;
-

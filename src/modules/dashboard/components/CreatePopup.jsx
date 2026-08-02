@@ -9,9 +9,9 @@ import CreateJoin from './CreateJoin.jsx';
 import { createCommunity, createLocalGroup, createDefaultAnnouncementGroup } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { addCommunity, addLocalGroup } from '../../../shared/store/slices/dashboardSlice';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const CreatePopup = ({ open, onClose }) => {
-  if (!open) return null;
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useAuth?.() || {};
@@ -25,7 +25,9 @@ const CreatePopup = ({ open, onClose }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  const storedEmail = (JSON.parse(sessionStorage.getItem('userData'))?.email) || '';
+  if (!open) return null;
+
+  const storedEmail = getStoredUserEmail();
   const userEmail = (user && user.email) || storedEmail || '';
 
   const handleJoinSuccess = (responseData) => {
@@ -228,5 +230,3 @@ const CreatePopup = ({ open, onClose }) => {
 };
 
 export default CreatePopup;
-
-

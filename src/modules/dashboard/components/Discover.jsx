@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { authenticatedFetch, BASE_URL, searchCommunities } from '../../../shared/services/API';
 import JoinCommunityModal from './JoinCommunityModal';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setSelectedView } from '../../../shared/store/slices/uiSlice';
 
 const CommunityCard = ({ community, onClick, isMobile = false }) => {
   const title = community.name || 'Untitled';
@@ -11,7 +8,6 @@ const CommunityCard = ({ community, onClick, isMobile = false }) => {
   const bannerImg = community.bannerUrl || '';
   const profileImg = community.imageUrl || community.imageURL || '';
   const members = community.memberCount ?? community.totalMembers ?? community.members ?? 0;
-  const online = community.onlineMembers || community.online || 0;
   const [bannerError, setBannerError] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const showMembers = members !== null && members !== undefined && members !== '';
@@ -169,9 +165,7 @@ const SkeletonCard = ({ isMobile = false }) => {
   );
 };
 
-const Discover = ({ onOpenMenu }) => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -365,4 +359,3 @@ const Discover = ({ onOpenMenu }) => {
 };
 
 export default Discover;
-

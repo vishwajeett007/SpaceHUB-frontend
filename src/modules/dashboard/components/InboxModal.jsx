@@ -1,17 +1,16 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { acceptJoinRequest, rejectJoinRequest, respondToFriendRequest, getPresignedDownloadUrl, deleteNotificationByReference } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import webSocketService from '../../../shared/services/WebSocketService';
+import { getStoredUserEmail } from '../../../shared/services/authStorage';
 import {
   selectRequests,
-  selectInboxActiveTab,
   selectInboxLoading,
   selectInboxError,
   selectProcessingRequest,
   setRequests,
   addRequest,
-  setActiveTab,
   setLoading,
   setError,
   setProcessingRequest,
@@ -25,7 +24,6 @@ const InboxModal = ({ isOpen, onClose }) => {
   const modalRef = useRef(null);
   const { user } = useAuth();
   
-  const activeTab = useSelector(selectInboxActiveTab);
   const requests = useSelector(selectRequests);
   const loading = useSelector(selectInboxLoading);
   const error = useSelector(selectInboxError);
@@ -82,7 +80,7 @@ const InboxModal = ({ isOpen, onClose }) => {
   }, [requests, avatarUrls]);
 
 
-  const transformFriendRequest = (req, idx = 0) => {
+  const transformFriendRequest = useCallback((req, idx = 0) => {
 
     if (req.senderName || req.senderEmail) {
       const displayName = req.senderName || req.senderEmail?.split('@')[0] || 'Unknown User';
@@ -131,9 +129,9 @@ const InboxModal = ({ isOpen, onClose }) => {
             lastName: req.lastName,
             avatar: req.avatar || req.avatarUrl || req.profileImage || null
           };
-  };
+  }, [avatarUrls]);
 
-  const transformCommunityRequest = (req, communityId, communityName) => {
+  const transformCommunityRequest = useCallback((req, communityId, communityName) => {
     // Handle new WebSocket format
     if (req.senderName || req.senderEmail) {
       const displayName = req.senderName || req.senderEmail?.split('@')[0] || 'Unknown';
@@ -172,7 +170,7 @@ const InboxModal = ({ isOpen, onClose }) => {
       userId: req.userId || req.id,
                 avatar: req.avatar || null
     };
-  };
+  }, [avatarUrls]);
 
 
   useEffect(() => {
@@ -182,7 +180,7 @@ const InboxModal = ({ isOpen, onClose }) => {
   }, [isOpen, dispatch]);
 
   useEffect(() => {
-    const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+    const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
 
     if (!userEmail) {
@@ -346,7 +344,7 @@ const InboxModal = ({ isOpen, onClose }) => {
     return () => {
       removeListener();
     };
-  }, [user, dispatch, isOpen]);
+  }, [user, dispatch, isOpen, transformFriendRequest, transformCommunityRequest]);
 
   // Request notifications when modal opens
   useEffect(() => {
@@ -387,7 +385,7 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     dispatch(setProcessingRequest(requestId));
     
-    const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+    const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
 
     if (!userEmail) {
@@ -408,7 +406,11 @@ const InboxModal = ({ isOpen, onClose }) => {
         window.dispatchEvent(new CustomEvent('toast', {
           detail: { message: 'Friend request accepted!', type: 'success' }
         }));
-        try { window.dispatchEvent(new Event('friends:refresh')); } catch {}
+        try {
+          window.dispatchEvent(new Event('friends:refresh'));
+        } catch {
+          // Refresh notification is best-effort.
+        }
       } else {
         await acceptJoinRequest({
           communityName: request.name,
@@ -443,7 +445,7 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     dispatch(setProcessingRequest(requestId));
     
-    const storedEmail = JSON.parse(sessionStorage.getItem('userData') || '{}')?.email || '';
+    const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
 
     if (!userEmail) {
@@ -630,4 +632,3 @@ const InboxModal = ({ isOpen, onClose }) => {
 };
 
 export default InboxModal;
-

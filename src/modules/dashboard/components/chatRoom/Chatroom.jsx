@@ -12,9 +12,7 @@ const ChatRoom = ({
   currentUser = {},
   messages = [],
   onSend,
-  onMessage,
   chatUser = null, 
-  isGroupChat = false,
   onBack = null,
   sendMessage = null,
   onToggleRightPanel = null,
@@ -126,6 +124,7 @@ const ChatRoom = ({
       file,
       url: URL.createObjectURL(file),
       fileKey: null,
+      fileUrl: null,
       uploading: true,
       fileName: file.name,
       contentType: file.type || 'application/octet-stream'
@@ -134,7 +133,7 @@ const ChatRoom = ({
     setAttachments((prev) => [...prev, ...newAttachments]);
     e.target.value = '';
     
-    newAttachments.forEach(async (attachment, index) => {
+    newAttachments.forEach(async (attachment) => {
       try {
         const uploadResult = await uploadFileAndGetUrl(attachment.file);
         
@@ -148,6 +147,7 @@ const ChatRoom = ({
             updated[attachmentIndex] = {
               ...updated[attachmentIndex],
               fileKey: uploadResult.fileKey,
+              fileUrl: uploadResult.fileUrl,
               fileName: uploadResult.fileName || attachment.fileName,
               contentType: uploadResult.contentType || attachment.contentType,
               uploading: false
@@ -210,7 +210,9 @@ const ChatRoom = ({
   const handleSend = () => {
     const trimmed = message.trim();
     // Filter out attachments that are still uploading or don't have fileKey
-    const readyAttachments = attachments.filter((att) => !att.uploading && att.fileKey);
+    const readyAttachments = attachments.filter(
+      (att) => !att.uploading && (att.fileKey || att.fileUrl)
+    );
     
     // Allow sending if there's any message content (including emojis) or ready attachments
     if (!trimmed && readyAttachments.length === 0) {
@@ -244,14 +246,18 @@ const ChatRoom = ({
               att.fileName?.toLowerCase().split('.').pop()
             );
           return isImage;
-        }).map((a) => a.fileKey),
+        }).map((a) => a.fileKey || a.fileUrl),
         attachments: readyAttachments // Pass attachments so onSend can send FILE type messages
       };
       onSend?.(newMsg);
     }
     
     setMessage('');
-    try { attachments.forEach((a) => URL.revokeObjectURL(a.url)); } catch {}
+    try {
+      attachments.forEach((a) => URL.revokeObjectURL(a.url));
+    } catch {
+      // Object URL cleanup is best-effort.
+    }
     setAttachments([]);
     try {
       requestAnimationFrame(() => {
@@ -259,7 +265,9 @@ const ChatRoom = ({
           scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
         }
       });
-    } catch {}
+    } catch {
+      // Scrolling is a non-critical enhancement.
+    }
   };
 
   useEffect(() => {
@@ -302,10 +310,12 @@ const ChatRoom = ({
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
-    } catch (e) {
+    } catch {
       try {
         window.open(url, '_blank');
-      } catch {}
+      } catch {
+        // The browser may block both download mechanisms.
+      }
     }
   };
 
@@ -379,7 +389,6 @@ const ChatRoom = ({
               const prev = messages[idx - 1];
               const showDateChip = !!prev && formatDateChip(prev.createdAt) !== formatDateChip(m.createdAt);
               const isSelf = !!m.isSelf;
-              const showAvatar = idx === 0 || !prev || prev.author !== m.author;
               
               if (m.type === 'system') {
                 const variantClass = systemVariantStyles[m.systemVariant] || 'bg-gray-200 text-gray-700 border border-gray-300';
@@ -581,7 +590,9 @@ const ChatRoom = ({
                       // Revoke object URL when removing
                       try {
                         URL.revokeObjectURL(a.url);
-                      } catch {}
+                      } catch {
+                        // Object URL cleanup is best-effort.
+                      }
                       return updated;
                     });
                   }}
@@ -649,7 +660,7 @@ const ChatRoom = ({
           {/* Send Button */}
           <button
             onClick={handleSend}
-            disabled={isReadOnly || (!message.trim() && attachments.filter(att => !att.uploading && att.fileKey).length === 0) || attachments.some(att => att.uploading)}
+            disabled={isReadOnly || (!message.trim() && attachments.filter(att => !att.uploading && (att.fileKey || att.fileUrl)).length === 0) || attachments.some(att => att.uploading)}
             className="p-1.5 sm:p-2 text-white hover:text-gray-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Send"
           >
@@ -678,4 +689,3 @@ const ChatRoom = ({
 };
 
 export default ChatRoom;
-

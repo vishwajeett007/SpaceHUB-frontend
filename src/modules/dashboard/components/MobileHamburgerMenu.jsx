@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
+import { getStoredUserEmail, readStoredUser } from '../../../shared/services/authStorage';
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 
 const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const sessionUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
+  const sessionUser = readStoredUser() || {};
   const displayUser = user || sessionUser;
   const username = displayUser?.username || displayUser?.email?.split('@')[0] || 'User';
   const avatarUrl = displayUser?.avatarUrl || '/avatars/avatar-1.png';
@@ -28,7 +29,7 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
   };
 
   if (!isOpen) return null;
-  const email = user?.email || JSON.parse(sessionStorage.getItem('userData') || '{}')?.email;
+  const email = user?.email || getStoredUserEmail();
 
   return (
     <>
@@ -145,4 +146,3 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
 };
 
 export default MobileHamburgerMenu;
-

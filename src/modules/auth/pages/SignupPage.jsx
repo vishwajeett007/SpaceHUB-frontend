@@ -360,7 +360,8 @@ const SignupPage = () => {
         title="Sign Up"
         description="Create your SpaceHUB account today. Join thousands of teams collaborating with real-time chat, voice channels, and shared workspaces."
         keywords="SpaceHUB signup, register account, create workspace, team registration"
-        url="https://spacehub.monu14.me/signup"
+        url="https://www.spacehubx.me/signup"
+
       />
       <style>
 

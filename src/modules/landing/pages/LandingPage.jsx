@@ -300,18 +300,19 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
     '@graph': [
       {
         '@type': 'WebSite',
-        '@id': 'https://spacehub.monu14.me/#website',
-        url: 'https://spacehub.monu14.me/',
+        '@id': 'https://www.spacehubx.me/#website',
+        url: 'https://www.spacehubx.me/',
         name: 'SpaceHUB',
         description: 'A unified workspace for teams to chat, share, and build together.',
         inLanguage: 'en-US',
       },
       {
         '@type': 'Organization',
-        '@id': 'https://spacehub.monu14.me/#organization',
+        '@id': 'https://www.spacehubx.me/#organization',
         name: 'SpaceHUB',
-        url: 'https://spacehub.monu14.me/',
-        logo: 'https://spacehub.monu14.me/favicon.png',
+        url: 'https://www.spacehubx.me/',
+        logo: 'https://www.spacehubx.me/favicon.png',
+
         contactPoint: {
           '@type': 'ContactPoint',
           telephone: '+91-7037123786',

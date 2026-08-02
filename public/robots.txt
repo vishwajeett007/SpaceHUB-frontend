@@ -10,4 +10,4 @@ Disallow: /dashboard/
 Disallow: /profile/
 
 # Sitemap location
-Sitemap: https://spacehub.monu14.me/sitemap.xml
+Sitemap: https://www.spacehubx.me/sitemap.xml

@@ -152,7 +152,8 @@ const LoginPage = () => {
         title="Log In"
         description="Log in to your SpaceHUB account to access your workspace, chat with team members, and collaborate in real-time."
         keywords="SpaceHUB login, sign in, team login, workspace access"
-        url="https://spacehub.monu14.me/login"
+        url="https://www.spacehubx.me/login"
+
       />
       <style>
 

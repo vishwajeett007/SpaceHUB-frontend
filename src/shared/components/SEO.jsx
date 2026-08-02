@@ -15,8 +15,10 @@ export const SEO = ({
   jsonLd = null,
 }) => {
   useEffect(() => {
-    const currentUrl = url || (typeof window !== 'undefined' ? window.location.href : 'https://spacehub.monu14.me');
+    const siteUrl = 'https://www.spacehubx.me';
+    const currentUrl = url || (typeof window !== 'undefined' ? window.location.href : siteUrl);
     const fullTitle = title ? `${title} | Spacehub` : 'Spacehub - Unified Team Workspace & Collaboration Platform';
+    const fullImgUrl = image.startsWith('http') ? image : `${typeof window !== 'undefined' ? window.location.origin : siteUrl}${image}`;
 
     // 1. Update document title
     document.title = fullTitle;
@@ -58,7 +60,6 @@ export const SEO = ({
     setMetaTag('meta[property="og:type"]', 'property', 'og:type', type);
     setMetaTag('meta[property="og:url"]', 'property', 'og:url', currentUrl);
     if (image) {
-      const fullImgUrl = image.startsWith('http') ? image : `${window.location.origin}${image}`;
       setMetaTag('meta[property="og:image"]', 'property', 'og:image', fullImgUrl);
     }
 
@@ -67,9 +68,9 @@ export const SEO = ({
     setMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', fullTitle);
     setMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
     if (image) {
-      const fullImgUrl = image.startsWith('http') ? image : `${window.location.origin}${image}`;
       setMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', fullImgUrl);
     }
+
 
     // 5. Canonical Link
     setLinkTag('canonical', currentUrl);

@@ -162,7 +162,8 @@ const ForgotPasswordPage = () => {
       <SEO
         title="Forgot Password"
         description="Reset your SpaceHUB account password securely."
-        url="https://spacehub.monu14.me/forgot-password"
+        url="https://www.spacehubx.me/forgot-password"
+
       />
       <div className="w-screen h-screen flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden lg:fixed lg:top-0 lg:left-0 overflow-hidden text-body">
 

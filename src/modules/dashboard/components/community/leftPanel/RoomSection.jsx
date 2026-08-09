@@ -58,7 +58,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         setLoadingVoiceRooms(true);
         try {
           const response = await getVoiceRoomsList(roomId);
-          const voiceRoomsData = response?.voiceRooms || [];
+          const voiceRoomsData = response?.data || response?.voiceRooms || [];
           // Store full voice room objects for delete functionality
           setFetchedVoiceRoomsData(voiceRoomsData);
           const voiceRoomNames = voiceRoomsData.map((vr) => vr.name).filter(Boolean);
@@ -80,6 +80,49 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       setFetchedVoiceRoomsData([]);
     }
   }, [open, isVoice, roomCode, roomId, isLocalGroup]);
+
+  // Listen for chatroom/voice room creation events to refetch
+  useEffect(() => {
+    if (!open) return;
+
+    const refetchChatrooms = async () => {
+      if (!isVoice && roomCode) {
+        try {
+          const response = await getChatroomsSummary(roomCode);
+          const chatroomsData = response?.data || [];
+          setFetchedChatroomsData(chatroomsData);
+          const chatroomNames = chatroomsData.map((cr) => cr.name || cr.chatRoomCode).filter(Boolean);
+          setFetchedChatrooms(chatroomNames);
+        } catch (error) {
+          console.error('Failed to refetch chatrooms:', error);
+        }
+      }
+    };
+
+    const refetchVoiceRooms = async () => {
+      if (isVoice && roomId) {
+        try {
+          const response = await getVoiceRoomsList(roomId);
+          const voiceRoomsData = response?.voiceRooms || response?.data || [];
+          setFetchedVoiceRoomsData(voiceRoomsData);
+          const voiceRoomNames = voiceRoomsData.map((vr) => vr.name).filter(Boolean);
+          setFetchedVoiceRooms(voiceRoomNames);
+        } catch (error) {
+          console.error('Failed to refetch voice rooms:', error);
+        }
+      }
+    };
+
+    const handleChatroomCreated = () => refetchChatrooms();
+    const handleVoiceRoomCreated = () => refetchVoiceRooms();
+
+    window.addEventListener('chatroom:created', handleChatroomCreated);
+    window.addEventListener('voice-room:created', handleVoiceRoomCreated);
+    return () => {
+      window.removeEventListener('chatroom:created', handleChatroomCreated);
+      window.removeEventListener('voice-room:created', handleVoiceRoomCreated);
+    };
+  }, [open, isVoice, roomCode, roomId]);
 
   const handleDeleteChatroom = async (chatroomName, e) => {
     e.stopPropagation(); 
@@ -328,38 +371,36 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       {open && (
         <div className="mt-2 pl-5 space-y-1">
           {!hasChannels && !loadingChatrooms && !loadingVoiceRooms && (
-            <div className="px-3 py-3 text-xs text-gray-500 italic">
-              No {isVoice ? 'voice' : 'chat'} rooms yet. Click + to create one!
+            <div className="px-3 py-2 text-xs text-gray-500 italic">
+              No {isVoice ? 'voice' : 'chat'} rooms yet.{canCreate ? ' Click + to create one!' : ''}
             </div>
           )}
           {hasChannels && allChannels.map((channel) => {
             const channelId = getChannelId(channel);
             const isSelected = selectedChannel === channelId;
-            const isFetched = isVoice ? fetchedVoiceRooms.includes(channel) : fetchedChatrooms.includes(channel);
-            const isDeleting = isVoice ? deletingVoiceRoom[channel] : deletingChatroom[channel]
+            const isDeleting = isVoice ? deletingVoiceRoom[channel] : deletingChatroom[channel];
             const isAuthorized = currentUserRole === 'ADMIN' || 
                                 currentUserRole === 'OWNER' || 
                                 currentUserRole === 'WORKSPACE_OWNER';
-            const canDeleteChatroom = !isVoice && isFetched && canCreate && onDeleteChatroom && isAuthorized &&
-                                     !(isAnnouncement && channel.toLowerCase() === 'general');
-            const canDeleteVoiceRoom = isVoice && isFetched && canCreate && onDeleteVoiceRoom && isAuthorized;
+            const canDeleteChatroom = !isVoice && canCreate && isAuthorized && !(isAnnouncement && channel.toLowerCase() === 'general');
+            const canDeleteVoiceRoom = isVoice && canCreate && isAuthorized;
             const canDelete = canDeleteChatroom || canDeleteVoiceRoom;
             
             return (
               <div
                 key={channel}
-                className={`flex items-center gap-2 group rounded-md ${
+                className={`flex items-center gap-2 group rounded-md px-1 transition-colors ${
                   isSelected
-                    ? 'bg-gray-700 text-white'
-                    : 'hover:bg-gray-100'
+                    ? 'bg-blue-600 text-white'
+                    : 'hover:bg-gray-300 text-gray-800'
                 }`}
               >
                 <button
                   onClick={() => handleChannelClick(channel)}
-                  className={`flex-1 text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 ${
+                  className={`flex-1 text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 truncate ${
                     isSelected
                       ? 'text-white font-semibold'
-                      : 'text-gray-800'
+                      : 'text-gray-800 hover:text-gray-900'
                   }`}
                 >
                   {isVoice ? (

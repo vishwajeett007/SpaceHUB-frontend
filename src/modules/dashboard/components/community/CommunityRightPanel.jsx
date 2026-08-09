@@ -27,6 +27,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         const data = await getCommunityMembers(communityId);
         list = data?.data?.members || data?.members || [];
       }
+      list = (Array.isArray(list) ? list : []).filter((m) => (m.role || '').toUpperCase() !== 'PENDING');
       
       // Store avatar URLs and usernames in session storage for use in chat rooms and voice rooms
       const avatarMap = {};

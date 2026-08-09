@@ -43,7 +43,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
         setLoadingVoiceRooms(true);
         try {
           const response = await getVoiceRoomsList(roomId);
-          const voiceRoomsData = response?.voiceRooms || [];
+          const voiceRoomsData = response?.data || response?.voiceRooms || [];
           const voiceRoomNames = voiceRoomsData.map((vr) => vr.name).filter(Boolean);
           setFetchedVoiceRooms(voiceRoomNames);
         } catch (error) {
@@ -70,7 +70,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
         const fetchVoiceRooms = async () => {
           try {
             const response = await getVoiceRoomsList(roomId);
-            const voiceRoomsData = response?.voiceRooms || [];
+            const voiceRoomsData = response?.data || response?.voiceRooms || [];
             const voiceRoomNames = voiceRoomsData.map((vr) => vr.name).filter(Boolean);
             setFetchedVoiceRooms(voiceRoomNames);
           } catch (error) {
@@ -86,22 +86,41 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
       window.removeEventListener('voice-room:created', handleVoiceRoomCreated);
     };
   }, [open, roomId]);
+
+  // Listen for chatroom creation events to refetch
+  useEffect(() => {
+    if (!open || !roomCode) return;
+
+    const handleChatroomCreated = async () => {
+      try {
+        const response = await getChatroomsSummary(roomCode);
+        const chatroomsData = response?.data || [];
+        const chatroomNames = chatroomsData.map((cr) => cr.name || cr.chatRoomCode).filter(Boolean);
+        setFetchedChatrooms(chatroomNames);
+      } catch (error) {
+        console.error('Failed to fetch chatrooms after creation:', error);
+      }
+    };
+
+    window.addEventListener('chatroom:created', handleChatroomCreated);
+    return () => {
+      window.removeEventListener('chatroom:created', handleChatroomCreated);
+    };
+  }, [open, roomCode]);
   
   const isAnnouncement = (groupName || '').toLowerCase() === 'announcement';
   
   const allChatRooms = useMemo(() => {
     const chatRoomList = chatRooms || [];
-    const filteredChatRooms = isAnnouncement
-      ? chatRoomList
-      : chatRoomList.filter(ch => ch !== 'general' && ch !== 'General');
+    const filteredChatRooms = chatRoomList.filter(ch => ch.toLowerCase() !== 'general');
     const merged = [...filteredChatRooms];
     fetchedChatrooms.forEach((name) => {
-      if (!merged.includes(name)) {
+      if (!merged.includes(name) && name.toLowerCase() !== 'general') {
         merged.push(name);
       }
     });
     return merged;
-  }, [chatRooms, fetchedChatrooms, isAnnouncement]);
+  }, [chatRooms, fetchedChatrooms]);
 
   // Handle chatroom deletion
   const handleDeleteChatroom = useCallback((chatroomName) => {
@@ -110,24 +129,20 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
 
   const allVoiceRooms = useMemo(() => {
     const filteredVoiceRooms = (voiceRooms || []).filter(
-      ch => ch !== 'general' && ch !== 'General'
+      ch => ch.toLowerCase() !== 'general' && ch.toLowerCase() !== 'voice-lounge'
     );
     const merged = [...filteredVoiceRooms];
     fetchedVoiceRooms.forEach((name) => {
-      if (!merged.includes(name)) {
+      if (!merged.includes(name) && name.toLowerCase() !== 'voice-lounge' && name.toLowerCase() !== 'general') {
         merged.push(name);
       }
     });
     return merged;
   }, [voiceRooms, fetchedVoiceRooms]);
-
-  const generalChatroom = isAnnouncement ? allChatRooms.find(ch => ch.toLowerCase() === 'general') : null;
-  
-  const hasNoRooms = allChatRooms.length === 0 && allVoiceRooms.length === 0;
   
   return (
     <div className="mb-3">
-      <div className="flex items-center text-base text-gray-800">
+      <div className="flex items-center text-base text-gray-800 font-medium mb-1">
         <button onClick={onToggle} className="flex items-center gap-2">
           <svg
             width="12"
@@ -140,138 +155,53 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
           >
             <path d="M9 18l6-6-6-6" />
           </svg>
-          <span className="text-gray-800">{groupName}</span>
+          <span className="text-gray-800 font-semibold">{groupName}</span>
         </button>
       </div>
       {open && (
-        <div className="mt-2">
-          {isAnnouncement ? (
-            // For Announcement group, show general chatroom directly
-            loadingChatrooms ? (
-              <div className="pl-5">
-                <div className="h-8 w-32 bg-gray-200 rounded-md animate-pulse"></div>
-              </div>
-            ) : generalChatroom ? (
-              <div className="pl-5 space-y-1">
-                <button
-                  onClick={() => {
-                    const channelId = `${groupName}:chat:${generalChatroom}`;
-                    onSelectChannel?.(channelId, roomCode, roomId);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm font-semibold ${
-                    selectedChannel === `${groupName}:chat:${generalChatroom}`
-                      ? 'bg-gray-700 text-white'
-                      : 'text-gray-800 hover:bg-gray-100'
-                  }`}
-                >
-                  # {generalChatroom}
-                </button>
-              </div>
-            ) : (
-              // Fallback: show general even if not found in fetched list (it should be in chatRooms prop)
-              <div className="pl-5 space-y-1">
-                <button
-                  onClick={() => {
-                    const channelId = `${groupName}:chat:general`;
-                    onSelectChannel?.(channelId, roomCode, roomId);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm font-semibold ${
-                    selectedChannel === `${groupName}:chat:general`
-                      ? 'bg-gray-700 text-white'
-                      : 'text-gray-800 hover:bg-gray-100'
-                  }`}
-                >
-                  # general
-                </button>
-              </div>
-            )
-          ) : loadingChatrooms || loadingVoiceRooms ? (
-            <div className="ml-4 space-y-2">
-              {/* Shimmer for Chat Room section */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
-                  <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
-                </div>
-                <div className="pl-5 space-y-1">
-                  <div className="h-8 w-full bg-gray-200 rounded-md animate-pulse"></div>
-                  <div className="h-8 w-3/4 bg-gray-200 rounded-md animate-pulse"></div>
-                </div>
-              </div>
-              {/* Shimmer for Voice Room section */}
-              <div className="space-y-2 mt-3">
-                <div className="flex items-center justify-between">
-                  <div className="h-4 w-28 bg-gray-300 rounded animate-pulse"></div>
-                  <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
-                </div>
-                <div className="pl-5 space-y-1">
-                  <div className="h-8 w-full bg-gray-200 rounded-md animate-pulse"></div>
-                </div>
-              </div>
-            </div>
-          ) : hasNoRooms ? (
-            <div className="ml-4 px-3 py-4 text-xs text-gray-500 italic bg-gray-50 rounded-md border border-gray-200">
-              <p className="mb-2">No channels yet. Create a channel to get started!</p>
-              {canCreate && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onAddChatRoom(groupName)}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium transition-colors"
-                  >
-                    Create Chat Room
-                  </button>
-                  <button
-                    onClick={() => onAddVoiceRoom(groupName)}
-                    className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-xs font-medium transition-colors"
-                  >
-                    Create Voice Room
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <RoomSection
-                title="Chat room"
-                open={chatOpen}
-                onToggle={() => setChatOpen(!chatOpen)}
-                onAdd={() => onAddChatRoom(groupName)}
-                channels={allChatRooms}
-                isVoice={false}
-                selectedChannel={selectedChannel}
-                onSelectChannel={onSelectChannel}
-                groupName={groupName}
-                roomCode={roomCode}
-                isLocalGroup={isLocalGroup}
-                canCreate={canCreate}
-                onDeleteChatroom={handleDeleteChatroom}
-                currentUserRole={currentUserRole}
-                user={user}
-                onSwitchToGeneral={onSwitchToGeneral}
-                onRefreshGroups={onRefreshGroups}
-              />
-              <RoomSection
-                title="Voice room"
-                open={voiceOpen}
-                onToggle={() => setVoiceOpen(!voiceOpen)}
-                onAdd={() => onAddVoiceRoom(groupName)}
-                channels={allVoiceRooms}
-                isVoice={true}
-                selectedChannel={selectedChannel}
-                onSelectChannel={onSelectChannel}
-                groupName={groupName}
-                roomCode={roomCode}
-                roomId={roomId}
-                isLocalGroup={isLocalGroup}
-                canCreate={canCreate}
-                onDeleteVoiceRoom={onDeleteVoiceRoom}
-                currentUserRole={currentUserRole}
-                user={user}
-                onSwitchToGeneral={onSwitchToGeneral}
-                onRefreshGroups={onRefreshGroups}
-              />
-            </>
-          )}
+        <div className="mt-1 space-y-1">
+          {/* Chat rooms section */}
+          <RoomSection
+            title="Chat rooms"
+            open={chatOpen}
+            onToggle={() => setChatOpen(!chatOpen)}
+            onAdd={() => onAddChatRoom(groupName)}
+            channels={allChatRooms}
+            isVoice={false}
+            selectedChannel={selectedChannel}
+            onSelectChannel={onSelectChannel}
+            groupName={groupName}
+            roomCode={roomCode}
+            isLocalGroup={isLocalGroup}
+            canCreate={canCreate}
+            onDeleteChatroom={handleDeleteChatroom}
+            currentUserRole={currentUserRole}
+            user={user}
+            onSwitchToGeneral={onSwitchToGeneral}
+            onRefreshGroups={onRefreshGroups}
+          />
+
+          {/* Voice rooms section */}
+          <RoomSection
+            title="Voice rooms"
+            open={voiceOpen}
+            onToggle={() => setVoiceOpen(!voiceOpen)}
+            onAdd={() => onAddVoiceRoom(groupName)}
+            channels={allVoiceRooms}
+            isVoice={true}
+            selectedChannel={selectedChannel}
+            onSelectChannel={onSelectChannel}
+            groupName={groupName}
+            roomCode={roomCode}
+            roomId={roomId}
+            isLocalGroup={isLocalGroup}
+            canCreate={canCreate}
+            onDeleteVoiceRoom={onDeleteVoiceRoom}
+            currentUserRole={currentUserRole}
+            user={user}
+            onSwitchToGeneral={onSwitchToGeneral}
+            onRefreshGroups={onRefreshGroups}
+          />
         </div>
       )}
     </div>

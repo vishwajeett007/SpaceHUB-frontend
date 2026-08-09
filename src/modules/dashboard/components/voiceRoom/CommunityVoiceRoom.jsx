@@ -51,8 +51,10 @@ const CommunityVoiceRoom = ({ title, voiceRoomData, communityId, onBack = null }
     isConnected,
     participants,
     isMuted,
+    isVideoOn,
     error,
     toggleMute,
+    toggleVideo,
     leave,
   } = useVoiceRoom(
     voiceRoomData?.janusRoomId,
@@ -123,10 +125,12 @@ const CommunityVoiceRoom = ({ title, voiceRoomData, communityId, onBack = null }
       title={title}
       participants={enrichedParticipants}
       localMuted={isMuted}
+      localVideoOn={isVideoOn}
       isConnected={isConnected}
       callActive={callActive}
       callEnded={callEnded}
       onToggleMute={toggleMute}
+      onToggleVideo={toggleVideo}
       onLeave={handleLeave}
       onStartCall={() => {
         setCallEnded(false);

@@ -1,406 +1,501 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import SockJS from 'sockjs-client';
-import { Client } from '@stomp/stompjs';
+import { io } from 'socket.io-client';
 import { BASE_URL } from '../services/API';
 
-const getVoiceWsUrl = () => {
-  if (!BASE_URL) return 'https://spacehub.monu14.me/ws';
-  try {
-    const url = new URL(BASE_URL);
-    return `${url.origin}/ws`;
-  } catch {
-    return 'https://spacehub.monu14.me/ws';
+const getSocketServerUrl = () => {
+  if (BASE_URL) {
+    try {
+      const url = new URL(BASE_URL);
+      return url.origin;
+    } catch {
+      // Fallback
+    }
   }
+  return typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : 'http://localhost:5000';
 };
-const WS_URL = getVoiceWsUrl();
 
-export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled = false, communityId = null) => {
+export const useVoiceRoom = (
+  janusRoomId,
+  sessionId,
+  handleId,
+  userId,
+  enabled = false,
+  communityId = null
+) => {
   const [isConnected, setIsConnected] = useState(false);
   const [participants, setParticipants] = useState([]);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isVideoOn, setIsVideoOn] = useState(false);
   const [error, setError] = useState(null);
 
-  const stompClientRef = useRef(null);
-  const peerConnectionRef = useRef(null);
+  const socketRef = useRef(null);
+  const peerConnectionsRef = useRef(new Map()); // socketId -> RTCPeerConnection
+  const pendingIceCandidatesRef = useRef(new Map()); // socketId -> Array of RTCIceCandidate
+  const remoteStreamsRef = useRef(new Map()); // socketId -> MediaStream
   const localStreamRef = useRef(null);
   const audioContainerRef = useRef(null);
-  const pendingCandidatesRef = useRef([]);
-  const remoteStreamsRef = useRef(new Map());
-  const roomEventHandlerRef = useRef(null);
-  const janusEventHandlerRef = useRef(null);
-  const startPeerConnectionRef = useRef(null);
 
   const log = useCallback((msg) => {
     console.log(`[VoiceRoom] ${msg}`);
   }, []);
 
+  const resolveParticipantName = useCallback((identifier) => {
+    if (!identifier) return 'Member';
+    if (communityId) {
+      try {
+        const usernames = JSON.parse(
+          sessionStorage.getItem(`community_usernames_${communityId}`) || '{}'
+        );
+        const normalized = String(identifier).toLowerCase();
+        if (usernames[normalized]) return usernames[normalized];
+      } catch (e) {
+        // Ignore parse error
+      }
+    }
+    if (typeof identifier === 'string' && identifier.includes('@')) {
+      return identifier.split('@')[0];
+    }
+    return identifier;
+  }, [communityId]);
+
+  // Audio container DOM setup for hidden background audio elements
   useEffect(() => {
     if (enabled && janusRoomId) {
-      // Create or get audio container
       let container = document.getElementById('voice-room-audio-container');
       if (!container) {
         container = document.createElement('div');
         container.id = 'voice-room-audio-container';
-        container.style.display = 'none'; 
+        container.style.display = 'none';
         document.body.appendChild(container);
       }
       audioContainerRef.current = container;
     }
   }, [enabled, janusRoomId]);
 
-  const cleanup = useCallback(() => {
-    log('Cleaning up voice room connection...');
-    
-    if (stompClientRef.current) {
-      try {
-        stompClientRef.current.deactivate();
-      } catch (e) {
-        log(`Error deactivating STOMP: ${e.message}`);
+  const flushPendingIceCandidates = useCallback(async (peerSocketId, pc) => {
+    const pending = pendingIceCandidatesRef.current.get(peerSocketId) || [];
+    if (pending.length > 0 && pc.remoteDescription) {
+      log(`🧊 Flushing ${pending.length} queued ICE candidates for ${peerSocketId}`);
+      for (const candidate of pending) {
+        try {
+          await pc.addIceCandidate(candidate);
+        } catch (e) {
+          log(`Error adding queued ICE candidate: ${e.message}`);
+        }
       }
-      stompClientRef.current = null;
+      pendingIceCandidatesRef.current.delete(peerSocketId);
+    }
+  }, [log]);
+
+  const cleanup = useCallback(() => {
+    log('Cleaning up voice/video room connections...');
+
+    if (socketRef.current) {
+      const sock = socketRef.current;
+      socketRef.current = null;
+      try {
+        sock.emit('webrtc_leave_room');
+        sock.disconnect();
+      } catch (e) {
+        log(`Error closing socket: ${e.message}`);
+      }
     }
 
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
+    peerConnectionsRef.current.forEach((pc) => {
+      try {
+        pc.close();
+      } catch (e) {
+        // Ignore
+      }
+    });
+    peerConnectionsRef.current.clear();
+    pendingIceCandidatesRef.current.clear();
+    remoteStreamsRef.current.clear();
 
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
 
-    // Clean up audio elements
     if (audioContainerRef.current) {
       audioContainerRef.current.innerHTML = '';
     }
 
-    remoteStreamsRef.current.clear();
-    pendingCandidatesRef.current = [];
     setIsConnected(false);
+    setIsVideoOn(false);
+    setIsMuted(false);
     setParticipants([]);
   }, [log]);
 
-  // Cleanup on unmount.
   useEffect(() => cleanup, [cleanup]);
 
-  const connectWebSocket = useCallback(() => {
-    if (!janusRoomId || !sessionId || !handleId || !userId) {
-      log('Missing required parameters for WebSocket connection');
-      return;
+  const createPeerConnection = useCallback((peerSocketId, peerUserId) => {
+    if (peerConnectionsRef.current.has(peerSocketId)) {
+      return peerConnectionsRef.current.get(peerSocketId);
     }
 
-    // Check if already connected or connecting
-    if (stompClientRef.current) {
-      const client = stompClientRef.current;
-      if (client.connected || client.active) {
-        log('WebSocket already connected');
-        return;
-      }
-      // If client exists but not connected, deactivate it first
-      try {
-        client.deactivate();
-      } catch (e) {
-        log(`Error deactivating existing client: ${e.message}`);
-      }
-      stompClientRef.current = null;
-    }
-
-    log('Connecting to WebSocket...');
-    const socket = new SockJS(WS_URL);
-    const client = new Client({
-      webSocketFactory: () => socket,
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      onConnect: () => {
-        log('✅ WebSocket connected');
-        setIsConnected(true);
-        setError(null);
-
-        // Subscribe to room events
-        client.subscribe(`/topic/room/${janusRoomId}/events`, (message) => {
-          try {
-            const event = JSON.parse(message.body);
-            log(`📢 Room Event: ${event.type} - ${event.userId}`);
-            roomEventHandlerRef.current?.(event);
-          } catch (e) {
-            log(`Error parsing room event: ${e.message}`);
-          }
-        });
-
-        // Subscribe to Janus events (SDP answers, ICE candidates)
-        client.subscribe(`/topic/room/${janusRoomId}/answer/${userId}`, (message) => {
-          try {
-            const resp = JSON.parse(message.body);
-            janusEventHandlerRef.current?.(resp);
-          } catch (e) {
-            log(`Error parsing Janus event: ${e.message}`);
-          }
-        });
-
-        // Register with the server
-        client.publish({
-          destination: '/app/register',
-          body: JSON.stringify({
-            userId,
-            sessionId,
-            handleId,
-            roomId: String(janusRoomId)
-          })
-        });
-
-        log('🚀 Registration sent. Starting WebRTC connection...');
-        startPeerConnectionRef.current?.();
-      },
-      onStompError: (frame) => {
-        log(`❌ STOMP error: ${frame.headers['message'] || 'Unknown error'}`);
-        setError(frame.headers['message'] || 'WebSocket connection error');
-        setIsConnected(false);
-      },
-      onWebSocketClose: () => {
-        log('🔌 WebSocket closed');
-        setIsConnected(false);
-      },
-      onDisconnect: () => {
-        log('👋 Disconnected from WebSocket');
-        setIsConnected(false);
-      }
-    });
-
-    client.activate();
-    stompClientRef.current = client;
-  }, [janusRoomId, sessionId, handleId, userId, log]);
-
-  const resolveParticipantName = useCallback((identifier) => {
-    if (!identifier) return 'Someone';
-    if (communityId) {
-      try {
-        const usernames = JSON.parse(sessionStorage.getItem(`community_usernames_${communityId}`) || '{}');
-        const normalized = typeof identifier === 'string' ? identifier.toLowerCase() : String(identifier).toLowerCase();
-        const stored = usernames[normalized];
-        if (stored) return stored;
-      } catch (parseError) {
-        log(`Unable to read cached community usernames: ${parseError.message}`);
-      }
-    }
-    if (identifier.includes && identifier.includes('@')) {
-      return identifier.split('@')[0];
-    }
-    return identifier;
-  }, [communityId, log]);
-
-  const handleRoomEvent = useCallback((event) => {
-    if (event.type === 'joined') {
-      log(`A new user joined: ${event.userId}`);
-      setParticipants(prev => {
-        const exists = prev.find(p => p.userId === event.userId);
-        if (!exists) {
-          return [...prev, { userId: event.userId, name: event.userId, muted: false, isSpeaking: false }];
-        }
-        return prev;
-      });
-      if (event.userId && userId && event.userId !== userId) {
-        const displayName = resolveParticipantName(event.userId);
-        window.dispatchEvent(new CustomEvent('toast', {
-          detail: { message: `${displayName} joined the voice room`, type: 'info' }
-        }));
-      }
-    } else if (event.type === 'left') {
-      log(`User left: ${event.userId}`);
-      setParticipants(prev => prev.filter(p => p.userId !== event.userId));
-      const audioId = `remote-audio-${event.userId}`;
-      const audio = document.getElementById(audioId);
-      if (audio) {
-        audio.remove();
-        remoteStreamsRef.current.delete(event.userId);
-      }
-    }
-  }, [log, resolveParticipantName, userId]);
-
-  const handleJanusEvent = useCallback((resp) => {
-    try {
-      if (resp.jsep) {
-        log('✅ Received SDP Answer');
-        const pc = peerConnectionRef.current;
-        if (!pc) {
-          log('⚠️ Peer connection not initialized');
-          return;
-        }
-
-        if (pc.remoteDescription && pc.remoteDescription.type) {
-          log('⚠️ SDP Answer already set. Ignoring.');
-          return;
-        }
-
-        pc.setRemoteDescription(new RTCSessionDescription(resp.jsep))
-          .then(() => {
-            log('✅ SDP Answer set successfully');
-            pendingCandidatesRef.current.forEach(candidate => {
-              pc.addIceCandidate(candidate).catch(e => 
-                log(`addIceCandidate error (queued): ${e.message}`)
-              );
-            });
-            pendingCandidatesRef.current = [];
-          })
-          .catch(e => log(`❌ setRemoteDescription error: ${e.message}`));
-      }
-
-      if (resp.candidate) {
-        const c = resp.candidate;
-        const pc = peerConnectionRef.current;
-
-        if (!pc) {
-          log('⚠️ Peer connection not initialized for ICE candidate');
-          return;
-        }
-
-        if (c.completed) {
-          log('🧊 ICE gathering complete signal received');
-          return;
-        }
-
-        if (c.candidate && c.sdpMid != null && c.sdpMLineIndex != null) {
-          const ice = new RTCIceCandidate({
-            candidate: c.candidate,
-            sdpMid: c.sdpMid,
-            sdpMLineIndex: c.sdpMLineIndex
-          });
-
-          if (pc.remoteDescription && pc.remoteDescription.type) {
-            pc.addIceCandidate(ice).catch(e => 
-              log(`addIceCandidate error: ${e.message}`)
-            );
-          } else {
-            log('🕐 Queuing ICE candidate until remote desc is set');
-            pendingCandidatesRef.current.push(ice);
-          }
-        } else {
-          log('⚠️ Received invalid candidate object, ignoring');
-        }
-      }
-
-      if (resp.plugindata && resp.plugindata.data && resp.plugindata.data.leaving) {
-        log(`👋 Remote peer left: ${resp.plugindata.data.leaving}`);
-        const userId = resp.plugindata.data.leaving;
-        setParticipants(prev => prev.filter(p => p.userId !== userId));
-        const audioId = `remote-audio-${userId}`;
-        const audio = document.getElementById(audioId);
-        if (audio) {
-          audio.remove();
-          remoteStreamsRef.current.delete(userId);
-        }
-      }
-    } catch (e) {
-      log(`❌ handleJanusEvent processing error: ${e.message}`);
-    }
-  }, [log]);
-
-  const startPeerConnection = useCallback(async () => {
-    if (peerConnectionRef.current) {
-      log('⚠️ Peer connection already exists. Closing old one.');
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-
-    try {
-      // Get user media
-      localStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      log('🎤 Microphone access granted');
-    } catch (err) {
-      log(`❌ Audio Error: ${err.message}`);
-      setError(`Failed to access microphone: ${err.message}`);
-      return;
-    }
+    log(`Creating RTCPeerConnection for peer: ${peerUserId} (${peerSocketId})`);
 
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
     });
 
-    // Add local tracks
-    localStreamRef.current.getTracks().forEach(track => {
-      pc.addTrack(track, localStreamRef.current);
-    });
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStreamRef.current);
+      });
+    }
 
-    // Handle remote tracks
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socketRef.current) {
+        socketRef.current.emit('webrtc_ice_candidate', {
+          targetSocketId: peerSocketId,
+          candidate: event.candidate,
+          roomId: String(janusRoomId),
+        });
+      }
+    };
+
     pc.ontrack = (event) => {
-      log('🎁 pc.ontrack fired! Received remote stream.');
-      
+      log(`🎁 Received remote track from peer: ${peerUserId}`);
       const stream = event.streams[0];
       if (!stream) return;
 
-      const streamId = stream.id;
-      const audioId = `remote-audio-${streamId}`;
-      let audio = document.getElementById(audioId);
+      remoteStreamsRef.current.set(peerSocketId, stream);
 
+      setParticipants((prev) =>
+        prev.map((p) => (p.socketId === peerSocketId ? { ...p, stream } : p))
+      );
+
+      const audioId = `remote-audio-${peerSocketId}`;
+      let audio = document.getElementById(audioId);
       if (audio) {
-        log(`Updating existing audio stream: ${audioId}`);
         audio.srcObject = stream;
       } else {
-        log(`Creating new audio element: ${audioId}`);
         audio = document.createElement('audio');
         audio.id = audioId;
         audio.autoplay = true;
         audio.playsInline = true;
-        audio.controls = true;
         audio.srcObject = stream;
-        
         if (audioContainerRef.current) {
           audioContainerRef.current.appendChild(audio);
         }
-
-        remoteStreamsRef.current.set(streamId, { audio, stream });
       }
 
-      audio.play().catch(e => {
-        log(`❌ Audio autoplay failed for ${audioId}: ${e.message}`);
-        log('👉 Please click the play button on the audio player.');
+      audio.play().catch((err) => {
+        log(`Audio autoplay warning for ${peerUserId}: ${err.message}`);
       });
     };
 
-    // Handle ICE candidates
-    pc.onicecandidate = (event) => {
-      if (event.candidate && stompClientRef.current) {
-        stompClientRef.current.publish({
-          destination: '/app/ice',
-          body: JSON.stringify({
-            userId,
-            roomId: janusRoomId,
-            candidate: event.candidate
-          })
-        });
-      }
-    };
+    peerConnectionsRef.current.set(peerSocketId, pc);
+    return pc;
+  }, [janusRoomId, log]);
 
-    peerConnectionRef.current = pc;
-
-    try {
-      // Create and send offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      if (stompClientRef.current) {
-        stompClientRef.current.publish({
-          destination: '/app/offer',
-          body: JSON.stringify({
-            userId,
-            roomId: janusRoomId,
-            sdp: offer.sdp
-          })
-        });
-        log('📤 WebRTC offer sent');
-      }
-    } catch (err) {
-      log(`❌ Error creating offer: ${err.message}`);
-      setError(`Failed to create WebRTC offer: ${err.message}`);
+  const connectVoiceRoom = useCallback(async () => {
+    if (!janusRoomId || !userId) {
+      log('Missing janusRoomId or userId for voice/video room connection');
+      return;
     }
-  }, [janusRoomId, userId, log]);
+
+    if (socketRef.current && socketRef.current.connected) {
+      log('Socket.IO voice room connection already active');
+      return;
+    }
+
+    log('Initializing media access (audio & video)...');
+    try {
+      // Request media access
+      localStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
+
+      // Start muted and camera off initially when entering room
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = false;
+      }
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = false;
+      }
+      log('🎤📷 Media access granted (initial state: mic muted, camera off)');
+    } catch (err) {
+      log(`⚠️ Video media error fallback to audio-only: ${err.message}`);
+      try {
+        localStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioTrack = localStreamRef.current.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = false;
+        }
+        log('🎤 Audio-only media access granted (initial state: mic muted)');
+      } catch (audioErr) {
+        log(`❌ Audio media error: ${audioErr.message}`);
+        setError(`Media access failed: ${audioErr.message}`);
+      }
+    }
+
+    const socketUrl = getSocketServerUrl();
+    log(`🔌 Connecting to Socket.IO Server: ${socketUrl}`);
+
+    const socket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      log(`✅ Socket.IO connected (${socket.id}). Joining room: ${janusRoomId}`);
+      setIsConnected(true);
+      setError(null);
+
+      socket.emit('webrtc_join_room', {
+        roomId: String(janusRoomId),
+        userId: userId,
+      });
+
+      socket.emit('webrtc_mute_status', {
+        roomId: String(janusRoomId),
+        isMuted: true,
+      });
+
+      socket.emit('webrtc_video_status', {
+        roomId: String(janusRoomId),
+        isVideoOn: false,
+      });
+
+      setParticipants([
+        {
+          userId,
+          socketId: socket.id,
+          name: resolveParticipantName(userId),
+          muted: true,
+          isVideoOn: false,
+          isSelf: true,
+          stream: localStreamRef.current,
+        },
+      ]);
+    });
+
+    socket.on('webrtc_existing_users', (existingPeers = []) => {
+      log(`👥 Received ${existingPeers.length} existing room members`);
+      existingPeers.forEach(async ({ userId: peerUserId, socketId: peerSocketId }) => {
+        setParticipants((prev) => {
+          if (prev.some((p) => p.userId === peerUserId || p.socketId === peerSocketId)) return prev;
+          return [
+            ...prev,
+            {
+              userId: peerUserId,
+              socketId: peerSocketId,
+              name: resolveParticipantName(peerUserId),
+              muted: false,
+              isVideoOn: false,
+              isSelf: false,
+              stream: remoteStreamsRef.current.get(peerSocketId) || null,
+            },
+          ];
+        });
+
+        try {
+          const pc = createPeerConnection(peerSocketId, peerUserId);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+
+          socket.emit('webrtc_offer', {
+            targetSocketId: peerSocketId,
+            targetUserId: peerUserId,
+            sdp: { type: offer.type || 'offer', sdp: offer.sdp },
+            roomId: String(janusRoomId),
+          });
+          log(`📤 Sent SDP offer to existing peer ${peerUserId}`);
+        } catch (err) {
+          log(`Error sending offer to existing peer: ${err.message}`);
+        }
+      });
+    });
+
+    socket.on('webrtc_user_joined', async ({ userId: peerUserId, socketId: peerSocketId }) => {
+      log(`👤 Remote peer joined: ${peerUserId} (${peerSocketId})`);
+
+      setParticipants((prev) => {
+        if (prev.some((p) => p.userId === peerUserId || p.socketId === peerSocketId)) return prev;
+        return [
+          ...prev,
+          {
+            userId: peerUserId,
+            socketId: peerSocketId,
+            name: resolveParticipantName(peerUserId),
+            muted: false,
+            isVideoOn: false,
+            isSelf: false,
+            stream: null,
+          },
+        ];
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('toast', {
+          detail: { message: `${resolveParticipantName(peerUserId)} joined room`, type: 'info' },
+        })
+      );
+    });
+
+    socket.on('webrtc_offer', async ({ senderUserId, senderSocketId, sdp }) => {
+      log(`📥 Received SDP offer from ${senderUserId}`);
+      try {
+        const pc = createPeerConnection(senderSocketId, senderUserId);
+        const description = typeof sdp === 'string' ? { type: 'offer', sdp } : sdp;
+
+        await pc.setRemoteDescription(new RTCSessionDescription(description));
+        await flushPendingIceCandidates(senderSocketId, pc);
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        socket.emit('webrtc_answer', {
+          targetSocketId: senderSocketId,
+          targetUserId: senderUserId,
+          sdp: { type: answer.type || 'answer', sdp: answer.sdp },
+          roomId: String(janusRoomId),
+        });
+        log(`📤 Sent SDP answer to peer ${senderUserId}`);
+      } catch (err) {
+        log(`Error handling SDP offer from ${senderUserId}: ${err.message}`);
+      }
+    });
+
+    socket.on('webrtc_answer', async ({ senderUserId, senderSocketId, sdp }) => {
+      log(`📥 Received SDP answer from ${senderUserId}`);
+      try {
+        const pc = peerConnectionsRef.current.get(senderSocketId);
+        if (pc) {
+          const description = typeof sdp === 'string' ? { type: 'answer', sdp } : sdp;
+          await pc.setRemoteDescription(new RTCSessionDescription(description));
+          log(`✅ Remote description set for ${senderUserId}`);
+          await flushPendingIceCandidates(senderSocketId, pc);
+        }
+      } catch (err) {
+        log(`Error setting remote description from answer: ${err.message}`);
+      }
+    });
+
+    socket.on('webrtc_ice_candidate', async ({ senderSocketId, candidate }) => {
+      if (!candidate) return;
+      try {
+        const pc = peerConnectionsRef.current.get(senderSocketId);
+        const iceCandidate = new RTCIceCandidate(candidate);
+
+        if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+          await pc.addIceCandidate(iceCandidate);
+        } else {
+          if (!pendingIceCandidatesRef.current.has(senderSocketId)) {
+            pendingIceCandidatesRef.current.set(senderSocketId, []);
+          }
+          pendingIceCandidatesRef.current.get(senderSocketId).push(iceCandidate);
+        }
+      } catch (err) {
+        log(`Error adding ICE candidate: ${err.message}`);
+      }
+    });
+
+    socket.on('webrtc_peer_mute_changed', ({ userId: peerUserId, isMuted: peerMuted }) => {
+      setParticipants((prev) =>
+        prev.map((p) => {
+          if (
+            p.userId === peerUserId ||
+            (p.userId && peerUserId && p.userId.toLowerCase() === peerUserId.toLowerCase())
+          ) {
+            return { ...p, muted: peerMuted };
+          }
+          return p;
+        })
+      );
+    });
+
+    socket.on('webrtc_peer_video_changed', ({ userId: peerUserId, isVideoOn: peerVideoOn }) => {
+      log(`📹 Video state changed for ${peerUserId}: ${peerVideoOn ? 'ON' : 'OFF'}`);
+      setParticipants((prev) =>
+        prev.map((p) => {
+          if (
+            p.userId === peerUserId ||
+            (p.userId && peerUserId && p.userId.toLowerCase() === peerUserId.toLowerCase())
+          ) {
+            return { ...p, isVideoOn: peerVideoOn };
+          }
+          return p;
+        })
+      );
+    });
+
+    // Remote peer left
+    socket.on('webrtc_user_left', ({ userId: peerUserId, socketId: peerSocketId }) => {
+      log(`👋 Remote peer left: ${peerUserId} (${peerSocketId})`);
+
+      setParticipants((prev) =>
+        prev.filter((p) => {
+          if (p.isSelf) return true; // Always preserve self
+
+          const matchSocket = p.socketId && peerSocketId && p.socketId === peerSocketId;
+          const matchUser =
+            p.userId &&
+            peerUserId &&
+            (p.userId === peerUserId ||
+              p.userId.toLowerCase() === peerUserId.toLowerCase() ||
+              p.userId.split('@')[0].toLowerCase() === peerUserId.split('@')[0].toLowerCase());
+
+          return !matchSocket && !matchUser;
+        })
+      );
+
+      if (peerSocketId && peerConnectionsRef.current.has(peerSocketId)) {
+        const pc = peerConnectionsRef.current.get(peerSocketId);
+        try {
+          pc.close();
+        } catch (e) {
+          // Ignore
+        }
+        peerConnectionsRef.current.delete(peerSocketId);
+      }
+      pendingIceCandidatesRef.current.delete(peerSocketId);
+      remoteStreamsRef.current.delete(peerSocketId);
+
+      const audioElem = document.getElementById(`remote-audio-${peerSocketId}`);
+      if (audioElem) {
+        audioElem.remove();
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('toast', {
+          detail: { message: `${resolveParticipantName(peerUserId)} left room`, type: 'info' },
+        })
+      );
+    });
+
+    socket.on('disconnect', () => {
+      log('🔌 Socket.IO disconnected from Voice/Video Server');
+      setIsConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      log(`❌ Socket.IO Connection Error: ${err.message}`);
+      setError(`Room server connection failed: ${err.message}`);
+      setIsConnected(false);
+    });
+  }, [createPeerConnection, flushPendingIceCandidates, janusRoomId, log, resolveParticipantName, userId]);
 
   useEffect(() => {
-    roomEventHandlerRef.current = handleRoomEvent;
-    janusEventHandlerRef.current = handleJanusEvent;
-    startPeerConnectionRef.current = startPeerConnection;
-  }, [handleJanusEvent, handleRoomEvent, startPeerConnection]);
+    if (enabled && janusRoomId && userId) {
+      connectVoiceRoom();
+    } else {
+      cleanup();
+    }
+  }, [connectVoiceRoom, cleanup, enabled, janusRoomId, userId]);
 
   const toggleMute = useCallback(() => {
     if (localStreamRef.current) {
@@ -409,78 +504,81 @@ export const useVoiceRoom = (janusRoomId, sessionId, handleId, userId, enabled =
         const newMutedState = !isMuted;
         audioTracks[0].enabled = !newMutedState;
         setIsMuted(newMutedState);
-        log(newMutedState ? '🔇 Muted' : '🔊 Unmuted');
+
+        setParticipants((prev) =>
+          prev.map((p) => (p.isSelf ? { ...p, muted: newMutedState } : p))
+        );
+
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('webrtc_mute_status', {
+            roomId: String(janusRoomId),
+            isMuted: newMutedState,
+          });
+        }
+        log(newMutedState ? '🔇 Muted microphone' : '🔊 Unmuted microphone');
       }
     }
-  }, [isMuted, log]);
+  }, [isMuted, janusRoomId, log]);
+
+  const toggleVideo = useCallback(async () => {
+    if (!localStreamRef.current) return;
+
+    let videoTracks = localStreamRef.current.getVideoTracks();
+
+    // If no video track exists yet, attempt to acquire camera stream
+    if (videoTracks.length === 0) {
+      try {
+        log('📹 Requesting camera video stream...');
+        const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const newVideoTrack = videoStream.getVideoTracks()[0];
+        localStreamRef.current.addTrack(newVideoTrack);
+
+        // Add track to existing peer connections
+        peerConnectionsRef.current.forEach((pc) => {
+          pc.addTrack(newVideoTrack, localStreamRef.current);
+        });
+
+        videoTracks = [newVideoTrack];
+      } catch (err) {
+        log(`❌ Failed to acquire camera: ${err.message}`);
+        setError(`Camera access error: ${err.message}`);
+        return;
+      }
+    }
+
+    const newVideoState = !isVideoOn;
+    videoTracks.forEach((track) => {
+      track.enabled = newVideoState;
+    });
+
+    setIsVideoOn(newVideoState);
+
+    setParticipants((prev) =>
+      prev.map((p) => (p.isSelf ? { ...p, isVideoOn: newVideoState } : p))
+    );
+
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('webrtc_video_status', {
+        roomId: String(janusRoomId),
+        isVideoOn: newVideoState,
+      });
+    }
+
+    log(newVideoState ? '📹 Camera turned ON' : '📷 Camera turned OFF');
+  }, [isVideoOn, janusRoomId, log]);
 
   const leave = useCallback(() => {
     cleanup();
   }, [cleanup]);
 
-  // Track current connection params to prevent unnecessary reconnections
-  const connectionParamsRef = useRef(null);
-  const previousJanusRoomIdRef = useRef(janusRoomId);
-
-  // Clear participants when janusRoomId changes (room switch)
-  useEffect(() => {
-    const previousJanusRoomId = previousJanusRoomIdRef.current;
-    const currentJanusRoomId = janusRoomId;
-    
-    // If janusRoomId changed, clear participants
-    if (previousJanusRoomId && currentJanusRoomId && previousJanusRoomId !== currentJanusRoomId) {
-      log('Room changed, clearing participants');
-      setParticipants([]);
-      setIsConnected(false);
-    }
-    
-    // Update ref for next comparison
-    previousJanusRoomIdRef.current = currentJanusRoomId;
-  }, [janusRoomId, log]);
-
-  // Connect when enabled and all required params are available
-  useEffect(() => {
-    const currentParams = { janusRoomId, sessionId, handleId, userId };
-    const paramsKey = JSON.stringify(currentParams);
-    const previousParamsKey = connectionParamsRef.current ? JSON.stringify(connectionParamsRef.current) : null;
-
-    // Don't reconnect if already connected with same params
-    if (enabled && janusRoomId && sessionId && handleId && userId) {
-      if (paramsKey === previousParamsKey && stompClientRef.current) {
-        const client = stompClientRef.current;
-        if (client.connected || client.active) {
-          log('Already connected with same params, skipping reconnect');
-          return;
-        }
-      }
-      // Clear participants when switching to a new room
-      if (previousParamsKey && paramsKey !== previousParamsKey) {
-        log('Room params changed, clearing participants before connecting');
-        cleanup();
-      }
-      connectionParamsRef.current = currentParams;
-      connectWebSocket();
-    } else {
-      connectionParamsRef.current = null;
-      cleanup();
-    }
-  }, [
-    cleanup,
-    connectWebSocket,
-    enabled,
-    handleId,
-    janusRoomId,
-    log,
-    sessionId,
-    userId,
-  ]);
-
   return {
     isConnected,
     participants,
     isMuted,
+    isVideoOn,
     error,
     toggleMute,
-    leave
+    toggleVideo,
+    leave,
   };
 };

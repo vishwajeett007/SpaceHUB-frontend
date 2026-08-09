@@ -139,20 +139,20 @@ export const useCommunityChannelSelection = ({
         return;
       }
 
-      if (channelId.startsWith('announcement:')) {
+      if (channelId.startsWith('announcement:') || channelId === 'general') {
         const nextSelection = {
           ...nextBaseSelection,
           selectedChannelId: channelId,
           currentMode: 'chat',
           currentRoomTitle: '# general',
-          activeChatRoomCode: null,
+          activeChatRoomCode: channelId || 'announcement:general',
           voiceRoomData: null,
         };
         setSelection(nextSelection);
         storeSelection({
           channelId,
           roomCode: nextRoomCode || selection.currentRoomCode || roomCode,
-          chatRoomCode: null,
+          chatRoomCode: channelId || 'announcement:general',
           mode: 'chat',
           title: '# general',
           voiceRoomData: null,

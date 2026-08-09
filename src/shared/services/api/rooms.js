@@ -11,13 +11,10 @@ export async function joinRoom(roomCode) {
 }
 
 export async function createNewChatroom(roomCode, name) {
-  const formData = new FormData();
-  formData.append('roomCode', roomCode);
-  formData.append('name', name);
-
   const response = await authenticatedFetch(`${BASE_URL}new-chatroom/create`, {
     method: 'POST',
-    body: formData
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomCode, name })
   });
   return handleJson(response);
 }

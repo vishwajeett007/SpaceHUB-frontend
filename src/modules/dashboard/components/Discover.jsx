@@ -2,14 +2,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import { authenticatedFetch, BASE_URL, searchCommunities } from '../../../shared/services/API';
 import JoinCommunityModal from './JoinCommunityModal';
 
+const getMemberCount = (community) => {
+  if (!community) return 0;
+  if (typeof community.memberCount === 'number') return community.memberCount;
+  if (typeof community._count?.members === 'number') return community._count.members;
+  if (typeof community.totalMembers === 'number') return community.totalMembers;
+  if (Array.isArray(community.members)) {
+    return community.members.filter((m) => !m.role || m.role !== 'PENDING').length;
+  }
+  if (typeof community.members === 'number') return community.members;
+  return 0;
+};
+
 const CommunityCard = ({ community, onClick, isMobile = false }) => {
   const title = community.name || 'Untitled';
   const desc = community.description || '';
   const bannerImg = community.bannerUrl || '';
   const profileImg = community.avatarUrl || community.imageUrl || community.imageURL || '';
-  const members = typeof community._count?.members === 'number' 
-    ? community._count.members 
-    : (community.memberCount ?? community.totalMembers ?? community.members ?? 0);
+  const members = getMemberCount(community);
   const [bannerError, setBannerError] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const showMembers = members !== null && members !== undefined && members !== '';

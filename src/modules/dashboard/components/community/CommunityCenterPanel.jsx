@@ -17,10 +17,10 @@ import {
 
 const isGeneralAnnouncementChannel = (selectedChannelId, roomTitle) => (
   selectedChannelId === 'announcement:general'
-  || (
-    roomTitle === '# general'
-    && selectedChannelId?.startsWith('announcement:')
-  )
+  || selectedChannelId === 'general'
+  || selectedChannelId?.endsWith(':chat:general')
+  || roomTitle === '# general'
+  || roomTitle === 'general'
 );
 
 const CommunityCenterPanel = ({
@@ -57,7 +57,7 @@ const CommunityCenterPanel = ({
     userEmail,
   });
   const { messages, sendMessage } = useCommunityChat({
-    activeChatRoomCode,
+    activeChatRoomCode: activeChatRoomCode || selectedChannelId || currentRoomCode || roomCode,
     currentMode,
     getCachedAvatar,
     getCachedUsername,
@@ -78,11 +78,11 @@ const CommunityCenterPanel = ({
   const isReadOnly = isGeneralAnnouncementChannel(
     selectedChannelId,
     currentRoomTitle,
-  ) && currentUserRole !== 'ADMIN';
+  ) && !(currentUserRole === 'ADMIN' || currentUserRole === 'OWNER' || currentUserRole === 'WORKSPACE_OWNER');
 
   const handleSend = useCallback(async (message) => {
     if (isReadOnly) {
-      showToast('Only admins can send messages in the general announcement room', 'error');
+      showToast('Only admins and owners can send messages in the #general channel', 'error');
       return;
     }
 

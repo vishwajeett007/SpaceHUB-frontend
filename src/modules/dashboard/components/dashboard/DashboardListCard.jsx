@@ -38,12 +38,24 @@ const MemberCount = ({ members, mobile = false }) => (
   </div>
 );
 
+const getMemberCount = (item) => {
+  if (!item) return 0;
+  if (typeof item.memberCount === 'number') return item.memberCount;
+  if (typeof item._count?.members === 'number') return item._count.members;
+  if (typeof item.totalMembers === 'number') return item.totalMembers;
+  if (Array.isArray(item.members)) {
+    return item.members.filter((m) => !m.role || m.role !== 'PENDING').length;
+  }
+  if (typeof item.members === 'number') return item.members;
+  return 0;
+};
+
 const DashboardListCard = ({ activeTab, item, onSelect }) => {
   const rawUrl = item.imageUrl || item.bannerUrl || item.imageURL || '';
   const title = item.name || 'Untitled';
   const description = item.description || '';
   const imageUrl = resolveDashboardAssetUrl(rawUrl, BASE_URL);
-  const members = item.memberCount ?? item.totalMembers ?? item.members ?? 0;
+  const members = getMemberCount(item);
   const [imageError, setImageError] = useState(false);
   const isCommunity = activeTab === 'Community';
   const showMembers = members !== null && members !== undefined;

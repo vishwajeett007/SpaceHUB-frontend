@@ -5,6 +5,11 @@ import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import webSocketService from '../../../shared/services/WebSocketService';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 import {
+  normalizeFriendRequest,
+  normalizeCommunityRequest,
+  normalizeCommunityRequests,
+} from '../features/inbox/utils/requestNormalization';
+import {
   selectRequests,
   selectInboxLoading,
   selectInboxError,
@@ -19,6 +24,26 @@ import {
   markAllAsRead,
 } from '../../../shared/store/slices/inboxSlice';
 
+const formatNotificationTime = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+
+  if (diffInSeconds < 30) return 'Just now';
+  if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays}d ago`;
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
 const InboxModal = ({ isOpen, onClose }) => {
   const dispatch = useDispatch();
   const modalRef = useRef(null);
@@ -28,6 +53,7 @@ const InboxModal = ({ isOpen, onClose }) => {
   const loading = useSelector(selectInboxLoading);
   const error = useSelector(selectInboxError);
   const processingRequest = useSelector(selectProcessingRequest);
+  const [activeAction, setActiveAction] = useState(null); // 'accept' | 'reject' | null
   const requestsRef = useRef(requests);
   const [avatarUrls, setAvatarUrls] = useState({});
 
@@ -81,96 +107,11 @@ const InboxModal = ({ isOpen, onClose }) => {
 
 
   const transformFriendRequest = useCallback((req, idx = 0) => {
-    if (!req || typeof req !== 'object') return null;
-
-    if (req.senderName || req.senderEmail) {
-      const displayName = req.senderName || (req.senderEmail ? req.senderEmail.split('@')[0] : 'Unknown User');
-      const avatarFile = req.senderProfileImageUrl && !req.senderProfileImageUrl.startsWith('http') 
-        ? req.senderProfileImageUrl 
-        : null;
-      const avatarUrl = req.senderProfileImageUrl?.startsWith('http') 
-        ? req.senderProfileImageUrl 
-        : (avatarUrls[req.senderProfileImageUrl] || null);
-      
-      return {
-        id: `friend-${req.id || req.senderEmail || idx}`,
-        type: 'friend',
-        name: displayName,
-        requester: displayName,
-        requesterEmail: req.senderEmail,
-        userId: req.referenceId || req.id,
-        firstName: req.senderName?.split(' ')[0],
-        lastName: req.senderName?.split(' ').slice(1).join(' '),
-        avatar: avatarUrl,
-        avatarFile: avatarFile,
-        notificationId: req.id,
-        referenceId: req.referenceId, 
-        read: req.read || false,
-        createdAt: req.createdAt
-      };
-    }
-    
-    let displayName = 'Unknown User';
-    if (req.username) {
-      displayName = req.username;
-    } else if (req.name) {
-      displayName = req.name;
-    } else if (req.email || req.requesterEmail) {
-      displayName = (req.email || req.requesterEmail).split('@')[0];
-    }
-    
-    return {
-      id: `friend-${req.id || req.requesterEmail || req.email || idx}`,
-      type: 'friend',
-      name: displayName,
-      requester: displayName,
-      requesterEmail: req.email || req.requesterEmail,
-      userId: req.id || req.userId,
-      firstName: req.firstName,
-      lastName: req.lastName,
-      avatar: req.avatar || req.avatarUrl || req.profileImage || null
-    };
+    return normalizeFriendRequest(req, idx, avatarUrls);
   }, [avatarUrls]);
 
   const transformCommunityRequest = useCallback((req, communityId, communityName) => {
-    // Handle new WebSocket format
-    if (req.senderName || req.senderEmail) {
-      const displayName = req.senderName || req.senderEmail?.split('@')[0] || 'Unknown';
-      const avatarFile = req.senderProfileImageUrl && !req.senderProfileImageUrl.startsWith('http') 
-        ? req.senderProfileImageUrl 
-        : null;
-      const avatarUrl = req.senderProfileImageUrl?.startsWith('http') 
-        ? req.senderProfileImageUrl 
-        : (avatarUrls[req.senderProfileImageUrl] || null);
-      
-      return {
-        id: `${req.communityId || communityId}-${req.referenceId || req.id}`,
-        communityId: req.communityId || communityId,
-        type: 'community',
-        name: req.communityName || communityName,
-        requester: displayName,
-        requesterEmail: req.senderEmail,
-        userId: req.referenceId || req.id,
-        avatar: avatarUrl,
-        avatarFile: avatarFile, 
-        notificationId: req.id,
-        referenceId: req.referenceId, 
-        read: req.read || false,
-        createdAt: req.createdAt
-      };
-    }
-    
-    // Handle legacy format
-    return {
-      id: `${communityId}-${req.userId || req.id}`,
-                communityId,
-                type: 'community',
-                name: communityName,
-                requester: req.username || req.email?.split('@')[0] || 'Unknown',
-                requesterEmail: req.email,
-      userId: req.userId || req.id,
-                avatar: req.avatar || null
-    };
+    return normalizeCommunityRequest(req, communityId, communityName, avatarUrls);
   }, [avatarUrls]);
 
 
@@ -351,18 +292,19 @@ const InboxModal = ({ isOpen, onClose }) => {
     try {
       const response = await getNotifications();
       const data = response?.data || response;
-      if (data && data.friendRequests) {
+      if (data) {
         const friendReqs = Array.isArray(data.friendRequests)
-          ? data.friendRequests.map((req, idx) => transformFriendRequest(req, idx))
+          ? data.friendRequests.map((req, idx) => transformFriendRequest(req, idx)).filter(Boolean)
           : [];
+        const communityReqs = normalizeCommunityRequests(data.communityRequests, avatarUrls);
         const currentReqs = requestsRef.current || [];
-        const existingNonFriend = currentReqs.filter((r) => r.type !== 'friend');
-        dispatch(setRequests([...existingNonFriend, ...friendReqs]));
+        const existingOther = currentReqs.filter((r) => r.type !== 'friend' && r.type !== 'community');
+        dispatch(setRequests([...existingOther, ...friendReqs, ...communityReqs]));
       }
     } catch (e) {
       console.warn('Failed to fetch notifications via HTTP:', e);
     }
-  }, [dispatch, transformFriendRequest]);
+  }, [dispatch, transformFriendRequest, avatarUrls]);
 
   useEffect(() => {
     fetchNotificationsHttp();
@@ -402,6 +344,7 @@ const InboxModal = ({ isOpen, onClose }) => {
     const request = requests.find(r => r.id === requestId);
     if (!request) return;
 
+    setActiveAction('accept');
     dispatch(setProcessingRequest(requestId));
     
     const storedEmail = getStoredUserEmail();
@@ -410,6 +353,7 @@ const InboxModal = ({ isOpen, onClose }) => {
     if (!userEmail) {
       dispatch(setError('User email not found'));
       dispatch(setProcessingRequest(null));
+      setActiveAction(null);
       return;
     }
 
@@ -455,6 +399,7 @@ const InboxModal = ({ isOpen, onClose }) => {
       }));
     } finally {
       dispatch(setProcessingRequest(null));
+      setActiveAction(null);
     }
   };
 
@@ -462,6 +407,7 @@ const InboxModal = ({ isOpen, onClose }) => {
     const request = requests.find(r => r.id === requestId);
     if (!request) return;
 
+    setActiveAction('reject');
     dispatch(setProcessingRequest(requestId));
     
     const storedEmail = getStoredUserEmail();
@@ -470,6 +416,7 @@ const InboxModal = ({ isOpen, onClose }) => {
     if (!userEmail) {
       dispatch(setError('User email not found'));
       dispatch(setProcessingRequest(null));
+      setActiveAction(null);
       return;
     }
 
@@ -511,6 +458,7 @@ const InboxModal = ({ isOpen, onClose }) => {
       }));
     } finally {
       dispatch(setProcessingRequest(null));
+      setActiveAction(null);
     }
   };
 
@@ -523,7 +471,7 @@ const InboxModal = ({ isOpen, onClose }) => {
         className="bg-white rounded-none md:rounded-xl shadow-2xl w-full h-full md:w-[420px] md:max-h-[calc(100vh-80px)] md:h-auto flex flex-col overflow-hidden modal-content"
       >
         {/* Header */}
-        <div className="bg-white px-4 md:px-6 py-4 md:py-5 relative">
+        <div className="bg-white px-4 md:px-6 py-4 md:py-5 relative border-b border-gray-100">
           <button
             onClick={onClose}
             className="absolute top-3 md:top-4 right-3 md:right-4 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
@@ -533,14 +481,13 @@ const InboxModal = ({ isOpen, onClose }) => {
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
-          <div className="flex items-center gap-2.5 mb-4 md:mb-5">
+          <div className="flex items-center gap-2.5">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-700">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M9 21V9" />
             </svg>
             <h2 className="text-lg md:text-xl font-bold text-gray-800">Inbox</h2>
           </div>
-
         </div>
 
         {/* Content Area for requests */}
@@ -577,70 +524,96 @@ const InboxModal = ({ isOpen, onClose }) => {
                   <p className="text-gray-400 text-xs mt-1">You don't have any pending requests</p>
                 </div>
               ) : (
-                requestsWithAvatars.map((request) => (
-                  <div key={request.id} className="flex items-center gap-3 md:gap-4 bg-white rounded-lg p-3 md:p-4 shadow-sm">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                      {request.avatar ? (
-                        <img 
-                          src={request.avatar} 
-                          alt={request.requester} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            if (e.target.nextSibling) {
-                              e.target.nextSibling.style.display = 'flex';
-                            }
-                          }}
-                        />
-                      ) : null}
-                      <div className="w-full h-full bg-gray-300 flex items-center justify-center" style={{ display: request.avatar ? 'none' : 'flex' }}>
-                          <span className="text-xs font-semibold text-gray-600">
-                            {request.requester?.charAt(0) || 'U'}
+                requestsWithAvatars.map((request) => {
+                  const isProcessing = processingRequest === request.id;
+                  const isAccepting = isProcessing && activeAction === 'accept';
+                  const isRejecting = isProcessing && activeAction === 'reject';
+
+                  return (
+                    <div key={request.id} className="flex items-center gap-3 md:gap-4 bg-white rounded-lg p-3 md:p-4 shadow-sm">
+                      {/* Avatar */}
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                        {request.avatar ? (
+                          <img 
+                            src={request.avatar} 
+                            alt={request.requester} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if (e.target.nextSibling) {
+                                e.target.nextSibling.style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div className="w-full h-full bg-gray-300 flex items-center justify-center" style={{ display: request.avatar ? 'none' : 'flex' }}>
+                          <span className="text-xs md:text-sm font-bold text-gray-700">
+                            {request.requester?.charAt(0)?.toUpperCase() || 'U'}
                           </span>
                         </div>
-                    </div>
-
-                    {/* Request Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800 leading-tight">
-                        {request.type === 'friend' ? (
-                          <span>{request.requester} wants to be your friend</span>
-                        ) : (
-                          <>
-                            {request.name}
-                            <span className="text-xs font-normal text-gray-500 ml-1">
-                              ({request.type})
-                            </span>
-                          </>
-                        )}
                       </div>
-                      {request.type !== 'friend' && (
-                        <div className="text-xs text-gray-600 mt-1">
-                          {request.requester}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleReject(request.id)}
-                        disabled={processingRequest === request.id}
-                        className="px-2.5 md:px-4 py-1.5 md:py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-md transition-colors"
-                      >
-                        {processingRequest === request.id ? 'Processing...' : 'Reject'}
-                      </button>
-                      <button
-                        onClick={() => handleAccept(request.id)}
-                        disabled={processingRequest === request.id}
-                        className="px-2.5 md:px-4 py-1.5 md:py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-md transition-colors"
-                      >
-                        {processingRequest === request.id ? 'Processing...' : 'Accept'}
-                      </button>
+                      {/* Request Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs md:text-sm font-semibold text-gray-800 leading-snug break-words">
+                          {request.type === 'friend' ? (
+                            <span>
+                              <strong className="font-bold text-gray-900">{request.requester}</strong> wants to be your friend
+                            </span>
+                          ) : (
+                            <span>
+                              <strong className="font-bold text-gray-900">{request.requester}</strong> wants to join{' '}
+                              <strong className="font-bold text-blue-600">{request.name}</strong>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] md:text-xs text-gray-500">
+                          <span className="capitalize">{request.type}</span>
+                          {request.createdAt && (
+                            <>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-gray-400 whitespace-nowrap">
+                                {formatNotificationTime(request.createdAt)}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleReject(request.id)}
+                          disabled={isProcessing}
+                          className="w-[62px] md:w-[72px] py-1.5 md:py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-md transition-colors flex items-center justify-center"
+                        >
+                          {isRejecting ? (
+                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            'Reject'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleAccept(request.id)}
+                          disabled={isProcessing}
+                          className="w-[62px] md:w-[72px] py-1.5 md:py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-md transition-colors flex items-center justify-center"
+                        >
+                          {isAccepting ? (
+                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            'Accept'
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}

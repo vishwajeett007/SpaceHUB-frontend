@@ -72,17 +72,46 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
       } else if (roomType === 'voice') {
         if (channelName && roomId && userEmail) {
           try {
-            const storageKey = `voiceRoom_${roomId}_${channelName}`;
-            const stored = sessionStorage.getItem(storageKey);
-            
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              janusRoomId = parsed?.data?.janusRoomId || 
-                           parsed?.data?.voiceRooms?.[0]?.janusRoomId ||
-                           parsed?.janusRoomId ||
-                           parsed?.voiceRooms?.[0]?.janusRoomId;
+            // Always fetch fresh voice room data from API to get correctly scoped janusRoomId
+            try {
+              const response = await getVoiceRoomsList(roomId);
+              const voiceRoomsData = response?.data || response?.voiceRooms || [];
+              const voiceRoom = voiceRoomsData.find((vr) => vr.name === channelName);
+              if (voiceRoom && voiceRoom.janusRoomId) {
+                janusRoomId = voiceRoom.janusRoomId;
+                // Update sessionStorage with fresh data
+                const storageKey = `voiceRoom_${roomId}_${channelName}`;
+                sessionStorage.setItem(storageKey, JSON.stringify({ data: voiceRoom }));
+                
+                const voiceRoomsArray = JSON.parse(sessionStorage.getItem('voiceRooms') || '[]');
+                const existingIndex = voiceRoomsArray.findIndex(
+                  (vr) => vr.name === channelName && (vr.chatRoomId === roomId || vr.chatRoomId === String(roomId))
+                );
+                if (existingIndex >= 0) {
+                  voiceRoomsArray[existingIndex] = { ...voiceRoom, chatRoomId: roomId, groupName };
+                } else {
+                  voiceRoomsArray.push({ ...voiceRoom, chatRoomId: roomId, groupName });
+                }
+                sessionStorage.setItem('voiceRooms', JSON.stringify(voiceRoomsArray));
+              }
+            } catch (error) {
+              console.error('Failed to fetch voice room from API:', error);
             }
-            
+
+            // Fallback: check sessionStorage if API failed
+            if (!janusRoomId) {
+              const storageKey = `voiceRoom_${roomId}_${channelName}`;
+              const stored = sessionStorage.getItem(storageKey);
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                janusRoomId = parsed?.data?.janusRoomId || 
+                             parsed?.data?.voiceRooms?.[0]?.janusRoomId ||
+                             parsed?.janusRoomId ||
+                             parsed?.voiceRooms?.[0]?.janusRoomId;
+              }
+            }
+
+            // Fallback: check voiceRooms array
             if (!janusRoomId) {
               const voiceRoomsArray = JSON.parse(sessionStorage.getItem('voiceRooms') || '[]');
               const voiceRoom = voiceRoomsArray.find(
@@ -92,33 +121,15 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
                 janusRoomId = voiceRoom.janusRoomId;
               }
             }
-            
-            if (!janusRoomId) {
-              try {
-                const response = await getVoiceRoomsList(roomId);
-                const voiceRoomsData = response?.voiceRooms || [];
-                const voiceRoom = voiceRoomsData.find((vr) => vr.name === channelName);
-                if (voiceRoom && voiceRoom.janusRoomId) {
-                  janusRoomId = voiceRoom.janusRoomId;
-                  // Save to sessionStorage for future use
-                  const storageKey = `voiceRoom_${roomId}_${channelName}`;
-                  sessionStorage.setItem(storageKey, JSON.stringify({ data: voiceRoom }));
-                  
-                  // Also update the voiceRooms array
-                  const voiceRoomsArray = JSON.parse(sessionStorage.getItem('voiceRooms') || '[]');
-                  const existingIndex = voiceRoomsArray.findIndex(
-                    (vr) => vr.name === channelName && (vr.chatRoomId === roomId || vr.chatRoomId === String(roomId))
-                  );
-                  if (existingIndex >= 0) {
-                    voiceRoomsArray[existingIndex] = { ...voiceRoom, chatRoomId: roomId, groupName };
-                  } else {
-                    voiceRoomsArray.push({ ...voiceRoom, chatRoomId: roomId, groupName });
-                  }
-                  sessionStorage.setItem('voiceRooms', JSON.stringify(voiceRoomsArray));
-                }
-              } catch (error) {
-                console.error('Failed to fetch voice room from API:', error);
-              }
+
+            // Last resort: generate scoped janusRoomId matching backend logic
+            if (!janusRoomId && channelName) {
+              const combined = `${roomId || ''}::${channelName}`;
+              const hash = combined.split('').reduce((acc, char) => {
+                acc = ((acc << 5) - acc) + char.charCodeAt(0);
+                return acc & acc;
+              }, 0);
+              janusRoomId = `vr_${roomId}_${Math.abs(hash).toString(36)}`;
             }
             
             // Join the voice room if janusRoomId is found
@@ -171,34 +182,14 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
   }, [user]);
 
   const handleSwitchToGeneral = useCallback(() => {
-    // Find the Announcement group
     const announcementGroup = groups.find(
       (g) => (g.name || '').toLowerCase() === 'announcement'
     );
+    const targetRoomCode = announcementGroup?.roomCode || groups[0]?.roomCode || communityId;
+    const targetRoomId = announcementGroup?.id || groups[0]?.id || communityId;
     
-    if (announcementGroup) {
-      const announcementRoomCode = announcementGroup.roomCode;
-      const announcementRoomId = announcementGroup.chatRoomId || announcementGroup.id;
-      const generalChannelId = `Announcement:chat:general`;
-      
-      // Select the general chatroom in the Announcement group
-      handleChannelSelect(generalChannelId, announcementRoomCode, announcementRoomId);
-    } else {
-      // If Announcement group not found, try to find any group with a general chatroom
-      const groupWithGeneral = groups.find(
-        (g) => (g.chatRooms || []).some((cr) => (cr || '').toLowerCase() === 'general')
-      );
-      
-      if (groupWithGeneral) {
-        const groupName = groupWithGeneral.name;
-        const groupRoomCode = groupWithGeneral.roomCode;
-        const groupRoomId = groupWithGeneral.chatRoomId || groupWithGeneral.id;
-        const generalChannelId = `${groupName}:chat:general`;
-        
-        handleChannelSelect(generalChannelId, groupRoomCode, groupRoomId);
-      }
-    }
-  }, [groups, handleChannelSelect]);
+    handleChannelSelect('announcement:general', targetRoomCode, targetRoomId);
+  }, [communityId, groups, handleChannelSelect]);
 
   const [openGroups, setOpenGroups] = useState({});
   const [showDropdown, setShowDropdown] = useState(false);
@@ -359,34 +350,36 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
           console.warn('Failed to save community rooms to sessionStorage:', err);
         }
 
-        const transformedGroups = roomsList.map((room) => {
-          const isAnnouncement = (room.name || room.roomName || '').toLowerCase() === 'announcement';
-          const chatRooms = isAnnouncement 
-            ? (room.chatRooms || []).concat(['general']).filter((ch, idx, arr) => arr.indexOf(ch) === idx) // Include general and remove duplicates
-            : (room.chatRooms || []).filter(ch => ch !== 'general' && ch !== 'General');
-          const voiceRooms = (room.voiceRooms || []).filter(ch => ch !== 'general' && ch !== 'General');
-          return {
-            id: room.id,
-            name: room.name || room.roomName,
-            chatRooms,
-            voiceRooms,
-            roomCode: room.roomCode
-          };
-        });
+        const transformedGroups = roomsList
+          .filter((room) => {
+            const name = (room.name || room.roomName || '').toLowerCase();
+            return name !== 'general' && name !== 'announcement';
+          })
+          .map((room) => {
+            const chatRooms = (room.chatRooms || []).filter(ch => ch.toLowerCase() !== 'general');
+            const voiceRooms = (room.voiceRooms || []).filter(ch => ch.toLowerCase() !== 'general' && ch.toLowerCase() !== 'voice-lounge');
+            return {
+              id: room.id,
+              name: room.name || room.roomName,
+              chatRooms,
+              voiceRooms,
+              roomCode: room.roomCode
+            };
+          });
 
         setGroups(transformedGroups);
         if (preserveOpenState && previousOpenGroups) {
-          // Preserve open state for existing groups
+          // Preserve open state for existing groups, defaulting new ones to open
           setOpenGroups(() => {
             const newState = transformedGroups.reduce((acc, g) => {
-              acc[g.name] = previousOpenGroups[g.name] !== undefined ? previousOpenGroups[g.name] : false;
+              acc[g.name] = previousOpenGroups[g.name] !== undefined ? previousOpenGroups[g.name] : true;
               return acc;
             }, {});
             return newState;
           });
         } else {
           setOpenGroups(
-            transformedGroups.reduce((acc, g) => ({ ...acc, [g.name]: false }), {})
+            transformedGroups.reduce((acc, g) => ({ ...acc, [g.name]: true }), {})
           );
         }
       }
@@ -432,48 +425,13 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
   }, [communityId, fetchGroups, currentUserRole]);
 
   const handleAddChatRoom = (groupName) => {
-    // Prevent room creation in Announcement group
-    if (groupName === 'Announcement') {
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Cannot create rooms in the Announcement group', type: 'error' }
-      }));
-      return;
-    }
-    
-    // Only allow workspace owners and admins to create chatrooms
-    const isAuthorized = currentUserRole === 'ADMIN' || 
-                        currentUserRole === 'OWNER' || 
-                        currentUserRole === 'WORKSPACE_OWNER';
-    if (!isLocalGroup && !isAuthorized) {
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Only workspace owners and admins can create chatrooms', type: 'error' }
-      }));
-      return;
-    }
     setChannelModalContext({ groupName, roomType: 'chat' });
     setShowCreateChannelModal(true);
   };
 
-
   const handleDeleteVoiceRoom = useCallback(() => undefined, []);
 
   const handleAddVoiceRoom = (groupName) => {
-    if (groupName === 'Announcement') {
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Cannot create rooms in the Announcement group', type: 'error' }
-      }));
-      return;
-    }
-    
-    const isAuthorized = currentUserRole === 'ADMIN' || 
-                        currentUserRole === 'OWNER' || 
-                        currentUserRole === 'WORKSPACE_OWNER';
-    if (!isLocalGroup && !isAuthorized) {
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Only workspace owners and admins can create voice rooms', type: 'error' }
-      }));
-      return;
-    }
     const targetGroup = groups.find((g) => g.name === groupName);
     const roomId = targetGroup?.id;
     setChannelModalContext({ groupName, roomType: 'voice', roomId });
@@ -483,23 +441,6 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
   const handleChannelCreated = async (channelName) => {
     const { groupName, roomType, roomId } = channelModalContext;
     if (!groupName || !channelName) return;
-
-    if (groupName === 'Announcement') {
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Cannot create rooms in the Announcement group', type: 'error' }
-      }));
-      return;
-    }
-
-    const isAuthorized = currentUserRole === 'ADMIN' || 
-                        currentUserRole === 'OWNER' || 
-                        currentUserRole === 'WORKSPACE_OWNER';
-    if (!isLocalGroup && !isAuthorized) {
-      window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Only workspace owners and admins can create rooms', type: 'error' }
-      }));
-      return;
-    }
 
     const clean = channelName.trim();
     const userEmail = user?.email || getStoredUserEmail();
@@ -552,6 +493,14 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
           window.dispatchEvent(new CustomEvent('toast', {
             detail: { message: 'Chatroom created successfully!', type: 'success' }
           }));
+          
+          // Dispatch event to refresh chatrooms in RoomSection
+          window.dispatchEvent(new CustomEvent('chatroom:created', {
+            detail: { roomCode, chatroomName: clean, groupName }
+          }));
+          
+          // Refresh groups to get updated chatrooms list
+          fetchGroups(true);
         } catch (error) {
           console.error('Failed to create chatroom:', error);
           window.dispatchEvent(new CustomEvent('toast', {
@@ -735,11 +684,33 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
     }
   };
 
-  const handleCreateGroupSuccess = () => {
-    fetchGroups();
+  const handleCreateGroupSuccess = (newGroup) => {
+    if (newGroup) {
+      const gName = newGroup.name || newGroup.roomName;
+      if (gName) {
+        setGroups((prev) => {
+          const exists = prev.some(g => g.name === gName);
+          if (!exists) {
+            return [...prev, {
+              id: newGroup.id || `group-${Date.now()}`,
+              name: gName,
+              chatRooms: newGroup.chatRooms || [],
+              voiceRooms: newGroup.voiceRooms || [],
+              roomCode: newGroup.roomCode
+            }];
+          }
+          return prev;
+        });
+        setOpenGroups((prev) => ({
+          ...prev,
+          [gName]: true
+        }));
+      }
+    }
+    fetchGroups(true);
     
     window.dispatchEvent(new CustomEvent('community:refresh-groups', { detail: community }));
-    try { window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Group created', type: 'success' } })); } catch {
+    try { window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Group created successfully', type: 'success' } })); } catch {
       // Group refresh should still complete if toast dispatch is unavailable.
     }
   };
@@ -817,29 +788,27 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
           <div className="absolute top-full left-0 right-0 bg-[#282828] rounded-b-md overflow-hidden shadow-lg z-50">
             <div className="pt-2 pb-2 border-t border-gray-600">
               {(currentUserRole === 'ADMIN' || currentUserRole === 'OWNER' || currentUserRole === 'WORKSPACE_OWNER') && (
-                <button
-                  onClick={() => handleDropdownAction('invite')}
-                  className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
-                >
-                  Invite people
-                </button>
+                <>
+                  <button
+                    onClick={() => handleDropdownAction('invite')}
+                    className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
+                  >
+                    Invite people
+                  </button>
+                  <button
+                    onClick={() => handleDropdownAction('create-group')}
+                    className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
+                  >
+                    Create group
+                  </button>
+                </>
               )}
-              {(currentUserRole === 'ADMIN' || currentUserRole === 'OWNER' || currentUserRole === 'WORKSPACE_OWNER') && (
-                <button
-                  onClick={() => handleDropdownAction('create-group')}
-                  className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
-                >
-                  Create group
-                </button>
-              )}
-              {currentUserRole === 'ADMIN' && (
-                <button
-                  onClick={() => handleDropdownAction('settings')}
-                  className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
-                >
-                  Settings
-                </button>
-              )}
+              <button
+                onClick={() => handleDropdownAction('settings')}
+                className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
+              >
+                Settings
+              </button>
               <button
                 onClick={() => handleDropdownAction('leave')}
                 className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white hover:text-black transition-colors"
@@ -854,6 +823,50 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-3 relative pb-16">
+        {/* Top-level General Channel (Admin/Owner announcement channel) */}
+        <div className="mb-3">
+          <button
+            onClick={handleSwitchToGeneral}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-between transition-all ${
+              selectedChannel === 'announcement:general' || selectedChannel === 'general'
+                ? 'bg-gray-800 text-white shadow-sm'
+                : 'text-gray-800 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className={selectedChannel === 'announcement:general' || selectedChannel === 'general' ? 'text-white font-bold text-base' : 'text-gray-700 font-bold text-base'}>#</span>
+              <span>general</span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 font-medium">Announcements</span>
+          </button>
+        </div>
+
+        {/* Create Group Button (Only for Admins and Owners) */}
+        {(currentUserRole === 'ADMIN' || currentUserRole === 'OWNER' || currentUserRole === 'WORKSPACE_OWNER') && (
+          <div className="mb-4">
+            <button
+              onClick={() => {
+                const isAuthorized = currentUserRole === 'ADMIN' || 
+                                    currentUserRole === 'OWNER' || 
+                                    currentUserRole === 'WORKSPACE_OWNER';
+                if (isAuthorized) {
+                  setShowCreateGroupModal(true);
+                } else {
+                  window.dispatchEvent(new CustomEvent('toast', {
+                    detail: { message: 'Only community admins and owners can create groups', type: 'error' }
+                  }));
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Create Group</span>
+            </button>
+          </div>
+        )}
+
         {loading && (
           <div className="space-y-4">
             {/* Groups skeleton */}
@@ -874,14 +887,17 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
 
         {/* Groups with Chat room and Voice room */}
         {!loading && groups.length === 0 && !error && (
-          <div className="text-gray-600 text-sm mt-4">No groups yet. Create a group to get started!</div>
+          <div className="text-gray-600 text-sm mt-4">
+            {(currentUserRole === 'ADMIN' || currentUserRole === 'OWNER' || currentUserRole === 'WORKSPACE_OWNER')
+              ? 'No groups yet. Create a group to get started!'
+              : 'No groups created yet.'}
+          </div>
         )}
         
         {!loading && groups.map((group) => {
-          const isAuthorized = currentUserRole === 'ADMIN' || 
-                              currentUserRole === 'OWNER' || 
-                              currentUserRole === 'WORKSPACE_OWNER';
-          const canCreate = isLocalGroup || isAuthorized;
+          const canCreate = currentUserRole === 'ADMIN' || 
+                            currentUserRole === 'OWNER' || 
+                            currentUserRole === 'WORKSPACE_OWNER';
           return (
             <GroupSection
               key={group.id || group.name}

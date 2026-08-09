@@ -19,27 +19,51 @@ const removeTokenCookie = () => {
 
 export const getStoredAuthToken = () => {
   const sessionToken = normalizeAuthToken(sessionStorage.getItem(ACCESS_TOKEN_KEY));
+  const localToken = normalizeAuthToken(localStorage.getItem(ACCESS_TOKEN_KEY));
   const cookieToken = normalizeAuthToken(Cookies.get(TOKEN_COOKIE));
-  return sessionToken || cookieToken;
+  return sessionToken || localToken || cookieToken;
 };
 
-export const persistAuthSession = (userData, tokenValue) => {
+export const persistAuthSession = (userData, tokenValue, rememberMe = true) => {
   const token = normalizeAuthToken(tokenValue);
   if (!token || !userData || typeof userData !== 'object') {
     return false;
   }
 
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
-  sessionStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+  // Always persist session to sessionStorage for active browser window
+  try {
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+    sessionStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+  } catch (e) {
+    console.warn('Unable to write to sessionStorage:', e);
+  }
 
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(USER_DATA_KEY);
+  if (rememberMe) {
+    // Persist to localStorage for long-term login across browser restarts
+    try {
+      localStorage.setItem(ACCESS_TOKEN_KEY, token);
+      localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    } catch (e) {
+      console.warn('Unable to write to localStorage:', e);
+    }
 
-  Cookies.set(TOKEN_COOKIE, token, {
-    path: '/',
-    sameSite: 'strict',
-    secure: window.location.protocol === 'https:',
-  });
+    // Maintain cookie for long-term session persistence (30 days)
+    try {
+      Cookies.set(TOKEN_COOKIE, token, {
+        path: '/',
+        expires: 30,
+        sameSite: 'strict',
+        secure: window.location.protocol === 'https:',
+      });
+    } catch (e) {
+      console.warn('Unable to set auth cookie:', e);
+    }
+  } else {
+    // If "Remember Me" is unchecked, clear persistent long-term storage
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(USER_DATA_KEY);
+    removeTokenCookie();
+  }
 
   return true;
 };
@@ -48,6 +72,9 @@ export const clearPasswordResetState = () => {
   sessionStorage.removeItem('resetEmail');
   sessionStorage.removeItem('resetIdentifier');
   sessionStorage.removeItem('resetAccessToken');
+  localStorage.removeItem('resetEmail');
+  localStorage.removeItem('resetIdentifier');
+  localStorage.removeItem('resetAccessToken');
 };
 
 export const clearStoredAuth = ({ includeResetState = false } = {}) => {
@@ -63,12 +90,11 @@ export const clearStoredAuth = ({ includeResetState = false } = {}) => {
 };
 
 export const clearLegacyLocalAuth = () => {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(USER_DATA_KEY);
+  // Retained for backward compatibility
 };
 
 export const readStoredUser = () => {
-  const rawUserData = sessionStorage.getItem(USER_DATA_KEY);
+  const rawUserData = sessionStorage.getItem(USER_DATA_KEY) || localStorage.getItem(USER_DATA_KEY);
   if (!rawUserData) return null;
 
   try {

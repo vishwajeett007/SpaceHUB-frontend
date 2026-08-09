@@ -77,8 +77,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, [isAuthenticated, user?.email]);
 
-  const handleLogin = (userData, token) => {
-    dispatch(login({ userData, token }));
+  const handleLogin = (userData, token, rememberMe = true) => {
+    dispatch(login({ userData, token, rememberMe }));
   };
 
   const handleLogout = () => {

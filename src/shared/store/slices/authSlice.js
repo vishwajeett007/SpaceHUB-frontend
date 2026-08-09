@@ -52,10 +52,10 @@ const authSlice = createSlice({
       }
     },
     login: (state, action) => {
-      const { userData, token } = action.payload;
+      const { userData, token, rememberMe = true } = action.payload;
       const normalizedToken = normalizeAuthToken(token);
       try {
-        if (persistAuthSession(userData, normalizedToken)) {
+        if (persistAuthSession(userData, normalizedToken, rememberMe)) {
           state.user = userData;
           state.token = normalizedToken;
           state.isAuthenticated = true;
@@ -93,6 +93,7 @@ const authSlice = createSlice({
         if (updatedUserData) {
           const mergedUser = { ...(state.user || {}), ...updatedUserData };
           sessionStorage.setItem('userData', JSON.stringify(mergedUser));
+          localStorage.setItem('userData', JSON.stringify(mergedUser));
           state.user = mergedUser;
           if (state.token || getStoredAuthToken()) {
             state.isAuthenticated = true;

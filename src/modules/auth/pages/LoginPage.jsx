@@ -16,6 +16,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [identifierError, setIdentifierError] = useState(false);
   const [invalidCredentials, setInvalidCredentials] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const throttleRefs = useRef({ login: 0 });
 
@@ -32,7 +33,14 @@ const LoginPage = () => {
 
   useEffect(() => {
     try {
-      const autoFillEmail = location.state?.autoFillEmail || sessionStorage.getItem('lastIdentifier');
+      const rememberedEmail = localStorage.getItem('rememberedEmail');
+      const savedRememberMe = localStorage.getItem('rememberMe');
+      
+      if (savedRememberMe !== null) {
+        setRememberMe(savedRememberMe === 'true');
+      }
+      
+      const autoFillEmail = location.state?.autoFillEmail || sessionStorage.getItem('lastIdentifier') || rememberedEmail;
       if (autoFillEmail) {
         setIdentifier(autoFillEmail);
       }
@@ -97,7 +105,7 @@ const LoginPage = () => {
           throw new Error('Login succeeded without an access token. Please try again.');
         }
 
-        login(userWithId, token);
+        login(userWithId, token, rememberMe);
 
         try {
           if (effectiveEmail) {
@@ -121,6 +129,13 @@ const LoginPage = () => {
           sessionStorage.setItem('lastIdentifier', identifierToSend);
           if (emailLike) {
             sessionStorage.setItem('lastEmail', identifierToSend);
+          }
+          if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+            localStorage.setItem('rememberedEmail', identifierToSend);
+          } else {
+            localStorage.setItem('rememberMe', 'false');
+            localStorage.removeItem('rememberedEmail');
           }
         } catch (storageError) {
           console.warn('Unable to remember the login identifier:', storageError);
@@ -276,9 +291,18 @@ const LoginPage = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-end mb-4">
-                <div className="text-sm mb-2">
-                  <Link to="/forgot-password" className="text-default underline hover:text-blue-700 font-medium ">
+              <div className="flex items-center justify-between mb-4 mt-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer accent-blue-600"
+                  />
+                  <span className="text-gray-700 font-medium">Remember me</span>
+                </label>
+                <div className="text-sm">
+                  <Link to="/forgot-password" className="text-default underline hover:text-blue-700 font-medium">
                     Forget password?
                   </Link>
                 </div>

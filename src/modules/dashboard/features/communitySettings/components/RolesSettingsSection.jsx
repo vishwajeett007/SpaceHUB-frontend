@@ -114,9 +114,8 @@ const MemberSearch = ({ mobile }) => {
     <div className={mobile ? 'mb-3' : 'mb-6'}>
       <div className="relative">
         <svg
-          className={`absolute top-1/2 transform -translate-y-1/2 text-gray-400 ${
-            mobile ? 'left-2 w-4 h-4' : 'left-3 w-5 h-5'
-          }`}
+          className={`absolute top-1/2 transform -translate-y-1/2 text-gray-400 ${mobile ? 'left-2 w-4 h-4' : 'left-3 w-5 h-5'
+            }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -137,7 +136,7 @@ const MemberSearch = ({ mobile }) => {
   );
 };
 
-const RoleMenu = ({ member, memberId, role, mobile }) => {
+const RoleMenu = ({ member, targetKey, memberId, role, mobile }) => {
   const { roles } = useCommunitySettings();
   const isAdmin = role === 'ADMIN';
   const isWorkspaceOwner = role === 'WORKSPACE_OWNER' || role === 'OWNER';
@@ -163,7 +162,7 @@ const RoleMenu = ({ member, memberId, role, mobile }) => {
         >
           {!isAdmin && (
             <button
-              onClick={() => roles.changeRole(member.email, 'ADMIN')}
+              onClick={() => roles.changeRole(targetKey, 'ADMIN')}
               className={mobile
                 ? 'w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-100 transition-colors'
                 : 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors'}
@@ -173,7 +172,7 @@ const RoleMenu = ({ member, memberId, role, mobile }) => {
           )}
           {!isWorkspaceOwner && (
             <button
-              onClick={() => roles.changeRole(member.email, 'WORKSPACE_OWNER')}
+              onClick={() => roles.changeRole(targetKey, 'WORKSPACE_OWNER')}
               className={mobile
                 ? 'w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-100 transition-colors'
                 : 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors'}
@@ -183,7 +182,7 @@ const RoleMenu = ({ member, memberId, role, mobile }) => {
           )}
           {!isMember && (
             <button
-              onClick={() => roles.changeRole(member.email, 'MEMBER')}
+              onClick={() => roles.changeRole(targetKey, 'MEMBER')}
               className={mobile
                 ? 'w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-100 transition-colors'
                 : 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors'}
@@ -199,9 +198,10 @@ const RoleMenu = ({ member, memberId, role, mobile }) => {
 
 const MemberRow = ({ member, mobile }) => {
   const { roles } = useCommunitySettings();
-  const memberId = member.email || member.id;
+  const targetKey = member.email || member.username || member.userId || member.id;
+  const memberId = targetKey;
   const originalRole = (member.role || 'MEMBER').toUpperCase();
-  const role = (roles.roleChanges[member.email] || originalRole).toUpperCase();
+  const role = (roles.roleChanges[targetKey] || originalRole).toUpperCase();
   const isCurrentUser = Boolean(
     member.email
     && roles.currentUserEmail
@@ -226,7 +226,7 @@ const MemberRow = ({ member, mobile }) => {
         )}
       </div>
       {!isCurrentUser && (
-        <RoleMenu member={member} memberId={memberId} role={role} mobile={mobile} />
+        <RoleMenu member={member} targetKey={targetKey} memberId={memberId} role={role} mobile={mobile} />
       )}
     </div>
   );
@@ -287,22 +287,20 @@ export const DesktopRolesSettingsSection = () => {
           <button
             onClick={roles.discard}
             disabled={!roles.hasChanges}
-            className={`px-4 py-2 rounded-md font-semibold transition-colors ${
-              roles.hasChanges
+            className={`px-4 py-2 rounded-md font-semibold transition-colors ${roles.hasChanges
                 ? 'bg-gray-700 hover:bg-gray-600 text-white'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }`}
+              }`}
           >
             Don't save
           </button>
           <button
             onClick={roles.save}
             disabled={!roles.hasChanges || roles.saving}
-            className={`px-6 py-2 rounded-md font-semibold transition-colors ${
-              roles.hasChanges && !roles.saving
+            className={`px-6 py-2 rounded-md font-semibold transition-colors ${roles.hasChanges && !roles.saving
                 ? 'bg-indigo-200 hover:bg-indigo-300 text-black'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }`}
+              }`}
           >
             {roles.saving ? 'Saving...' : 'Save changes'}
           </button>

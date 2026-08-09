@@ -14,9 +14,12 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
   const { user } = useAuth();
   const modalRef = useRef(null);
 
-  const isAuthorized = currentUserRole === 'ADMIN' || 
-                      currentUserRole === 'OWNER' || 
-                      currentUserRole === 'WORKSPACE_OWNER';
+  // Allow invitation generation for all community members/owners or when role is unspecified
+  const isAuthorized = !currentUserRole || 
+                      currentUserRole.toUpperCase() === 'ADMIN' || 
+                      currentUserRole.toUpperCase() === 'OWNER' || 
+                      currentUserRole.toUpperCase() === 'WORKSPACE_OWNER' ||
+                      currentUserRole.toUpperCase() === 'MEMBER';
 
   const generateInviteLink = useCallback(async () => {
     if (!communityId || !user?.email) {
@@ -50,11 +53,17 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
         // Use community invite API
         response = await createCommunityInvite({
           communityId,
+          email: user.email,
           inviterEmail: user.email,
         });
       }
 
-      const link = response?.data?.inviteLink || response?.inviteLink || response?.data?.link || response?.link || '';
+      const resData = response?.data || response;
+      const code = resData?.inviteCode || resData?.code || response?.inviteCode || response?.code;
+      const directLink = resData?.inviteLink || resData?.link || response?.inviteLink || response?.link;
+      
+      const link = directLink || (code ? `${window.location.origin}/${isLocalGroup ? 'localgroup/invite' : 'invite'}/${communityId}/${code}` : '');
+      
       if (link) {
         setInviteLink(link);
       } else {

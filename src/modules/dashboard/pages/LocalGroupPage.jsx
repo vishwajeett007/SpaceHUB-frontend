@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
-import { getAllLocalGroups } from '../../../shared/services/API';
+import { getAllLocalGroups, getLocalGroupById } from '../../../shared/services/API';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
 import { selectUnreadCount } from '../../../shared/store/slices/inboxSlice';
 import CommunityLeftPanel from '../components/community/CommunityLeftPanel';
@@ -30,6 +30,7 @@ const LocalGroupPage = () => {
   const [showCenterPanel, setShowCenterPanel] = useState(getIsTabletOrAbove);
   const [layoutStyle, setLayoutStyle] = useState({ minHeight: 'auto' });
   const showInbox = useSelector(selectShowInbox);
+  const unreadCount = useSelector(selectUnreadCount);
 
   useEffect(() => {
     const fetchLocalGroup = async () => {
@@ -46,19 +47,29 @@ const LocalGroupPage = () => {
       }
       
       try {
-        const res = await getAllLocalGroups(userEmail);
-        const list = res?.data?.groups || res?.groups || res?.data || res?.rooms || [];
+        let found = null;
+        try {
+          const detailRes = await getLocalGroupById(id);
+          found = detailRes?.data || detailRes?.community || (detailRes?.id ? detailRes : null);
+        } catch (e) {
+          console.warn('getLocalGroupById failed, trying list fallback:', e);
+        }
 
-        const found = list.find(
-          (g) => 
-            String(g.id) === String(id) || 
-            String(g.groupId) === String(id) || 
-            String(g.roomId) === String(id) ||
-            g.id === Number(id) ||
-            g.groupId === Number(id) ||
-            g.roomId === Number(id)
-        );
-        if (found) {
+        if (!found || !found.id) {
+          const res = await getAllLocalGroups(userEmail);
+          const list = res?.data?.groups || res?.groups || res?.data || res?.rooms || [];
+          found = list.find(
+            (g) => 
+              String(g.id) === String(id) || 
+              String(g.groupId) === String(id) || 
+              String(g.roomId) === String(id) ||
+              g.id === Number(id) ||
+              g.groupId === Number(id) ||
+              g.roomId === Number(id)
+          );
+        }
+
+        if (found && found.id) {
           setLocalGroup(found);
           try {
             sessionStorage.setItem(`localGroup:${found.id}`, JSON.stringify(found));
@@ -73,8 +84,6 @@ const LocalGroupPage = () => {
             console.warn('Failed to save local group to sessionStorage:', e);
           }
         } else {
-          console.log('Looking for ID:', id);
-          console.log('Available local groups:', list.map(g => ({ id: g.id, groupId: g.groupId, roomId: g.roomId })));
           setError('Local-Group not found');
         }
       } catch (e) {
@@ -220,8 +229,6 @@ const LocalGroupPage = () => {
       </div>
     );
   }
-
-  const unreadCount = useSelector(selectUnreadCount);
 
   return (
     <div className="h-screen flex flex-col overflow-x-hidden bg-[#E6E6E6] md:bg-gray-100">

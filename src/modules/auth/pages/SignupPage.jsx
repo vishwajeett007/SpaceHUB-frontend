@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { registerUser, validateRegisterOtp, resendRegisterOtp } from '../../../shared/services/API';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { showToast } from '../../../shared/services/toast';
 import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
@@ -8,6 +8,7 @@ import AuthSlides from '../components/AuthSlides';
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -55,6 +56,17 @@ const SignupPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (location.state?.step === 3 || sessionStorage.getItem('pendingVerificationEmail')) {
+      const emailToVerify = location.state?.email || sessionStorage.getItem('pendingVerificationEmail') || sessionStorage.getItem('signupEmail');
+      const token = location.state?.token || sessionStorage.getItem('registrationToken');
+      if (emailToVerify) {
+        setFormData((prev) => ({ ...prev, email: emailToVerify }));
+        if (token) setRegistrationToken(token);
+        setStep(3);
+      }
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -162,7 +174,7 @@ const SignupPage = () => {
 
   const isMobile = () => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth < 1024; // lg breakpoint
+    return window.innerWidth < 1024;
   };
 
   const handleEmailBlur = (e) => {
@@ -210,7 +222,6 @@ const SignupPage = () => {
 
   const handleRequestOtpAndNext = (e) => {
     e.preventDefault();
-    // Validate email on submit
     let hasEmailError = false;
     if (formData.email) {
       const isEmailValid = isValidEmail(formData.email);
@@ -224,7 +235,6 @@ const SignupPage = () => {
       }
     }
 
-    // Check password errors and show toast on mobile
     if (passwordError) {
       if (isMobile()) {
         showToast('Password Requirements: Password must be at least 8 characters, with one uppercase letter, with a number and one special character (#, @, !, %, &).', 'error');
@@ -254,14 +264,12 @@ const SignupPage = () => {
     const payload = { firstName, lastName, email, password };
     registerUser(payload)
       .then((res) => {
-        const token = (res && res.data) ? res.data : '';
+        const token = (res && res.data) ? (res.data.token || res.data) : '';
         setRegistrationToken(token);
 
-
-        if (token) {
+        if (token && typeof token === 'string') {
           sessionStorage.setItem('registrationToken', token);
         }
-
 
         sessionStorage.setItem('signupEmail', email);
         sessionStorage.setItem('signupFirstName', firstName);
@@ -274,6 +282,17 @@ const SignupPage = () => {
       .catch((err) => {
         console.error('Failed to initiate registration/OTP:', err.message);
         const errorMessage = err.message || 'Failed to send OTP. Please try again.';
+
+        // Handle existing email scenario by redirecting user to Login page with auto-filled email
+        if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('already exists') || err.status === 409) {
+          sessionStorage.setItem('lastIdentifier', email);
+          showToast('Email is already registered. Redirecting to login...', 'info');
+          setTimeout(() => {
+            navigate('/login', { state: { autoFillEmail: email } });
+          }, 1200);
+          return;
+        }
+
         showToast(errorMessage, 'error');
       })
       .finally(() => setLoading(false));
@@ -312,6 +331,7 @@ const SignupPage = () => {
       sessionStorage.removeItem('signupEmail');
       sessionStorage.removeItem('signupFirstName');
       sessionStorage.removeItem('signupLastName');
+      sessionStorage.removeItem('pendingVerificationEmail');
 
       localStorage.setItem('profileSetupRequired', 'true');
       showToast('Account created successfully! Please log in to complete your profile setup.', 'success');
@@ -330,7 +350,7 @@ const SignupPage = () => {
 
   const handleResendOtp = (e) => {
     e.preventDefault();
-    if (!registrationToken || !formData.email || resendTimer > 0) return;
+    if (!formData.email || resendTimer > 0) return;
     setLoading(true);
     resendRegisterOtp(formData.email, registrationToken)
       .then(() => {
@@ -361,10 +381,8 @@ const SignupPage = () => {
         description="Create your SpaceHUB account today. Join thousands of teams collaborating with real-time chat, voice channels, and shared workspaces."
         keywords="SpaceHUB signup, register account, create workspace, team registration"
         url="https://www.spacehubx.me/signup"
-
       />
       <style>
-
         {`
           .password-input[type="password"]:not([data-show="true"]):not(:placeholder-shown) {
             -webkit-text-security: disc;
@@ -537,12 +555,10 @@ const SignupPage = () => {
                   {emailError && (
                     <div className="hidden lg:block mt-2 p-2 bg-blue-50 border border-blue-200 rounded-sm">
                       <p className="text-xs text-blue-600 font-medium mb-1">Email Requirements :
-
                         <span className="text-xs text-blue-500 space-y-0.5">
                           Must be a valid email address, must contain @ symbol and a domain name.
                         </span>
                       </p>
-
                     </div>
                   )}
                 </div>
@@ -590,7 +606,6 @@ const SignupPage = () => {
                   </div>
                   {passwordError && (
                     <>
-                      {/* Show on mobile when password field is focused or has value */}
                       {(passwordFocused || formData.password) && (
                         <div className="lg:hidden mt-2 p-2 bg-blue-50 border border-blue-200 rounded-sm">
                           <p className="text-xs text-blue-600 font-medium mb-1">Password Requirements :
@@ -598,7 +613,6 @@ const SignupPage = () => {
                           </p>
                         </div>
                       )}
-                      {/* Show on desktop always */}
                       <div className="hidden lg:block mt-2 p-2 bg-blue-50 border border-blue-200 rounded-sm">
                         <p className="text-xs text-blue-600 font-medium mb-1">Password Requirements :
                           <span className="text-xs text-blue-500">Password must be at least 8 characters, with one uppercase letter, with a number and one special character (#, @, !, %, &).</span>
@@ -629,7 +643,6 @@ const SignupPage = () => {
                       onChange={handleChange}
                       onBlur={(e) => {
                         setConfirmPasswordBlurred(true);
-                        // Check if passwords match when user leaves the field
                         const currentPassword = formData.password;
                         const currentConfirm = e.target.value || formData.confirmPassword;
                         if (currentPassword && currentConfirm) {
@@ -664,11 +677,9 @@ const SignupPage = () => {
                   </div>
                   {passwordMismatch && confirmPasswordBlurred && (
                     <>
-                      {/* Show on mobile after blur */}
                       <div className="lg:hidden mt-2 p-2 bg-blue-50 border border-blue-200 rounded-sm">
                         <p className="text-xs text-blue-600 font-medium">Passwords do not match.</p>
                       </div>
-                      {/* Show on desktop after blur */}
                       <div className="hidden lg:block mt-2 p-2 bg-blue-50 border border-blue-200 rounded-sm">
                         <p className="text-xs text-blue-600 font-medium">Passwords do not match.</p>
                       </div>

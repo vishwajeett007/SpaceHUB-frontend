@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { searchUsers, sendFriendRequest } from '../../../shared/services/API';
+import { searchUsers, sendFriendRequest, cancelFriendRequest } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
@@ -32,9 +32,8 @@ const DashboardRightSidebar = ({ onClose }) => {
     setSearchError('');
     try {
       const data = await searchUsers(query.trim(), userEmail, 0, 10);
-      // console.log('data', data);
-      const results = data?.data?.content || [];
-      setSearchResults(Array.isArray(results) ? results : []);
+      const rawResults = data?.data?.content || data?.data || data?.content || data?.users || [];
+      setSearchResults(Array.isArray(rawResults) ? rawResults : []);
     } catch (e) {
       const errorMsg = e.message || 'Failed to search users';
       setSearchError(errorMsg);
@@ -50,7 +49,7 @@ const DashboardRightSidebar = ({ onClose }) => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       handleSearch(searchQuery);
-    }, 300);
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, handleSearch]);
@@ -64,20 +63,19 @@ const DashboardRightSidebar = ({ onClose }) => {
 
   const handleAddFriend = async (friendUser) => {
     const userEmail = user?.email || getStoredUserEmail();
-    const friendEmail = friendUser?.email;
+    const friendId = friendUser?.id || friendUser?.userId;
 
-    if (!userEmail || !friendEmail) {
+    if (!userEmail || !friendId) {
       window.dispatchEvent(new CustomEvent('toast', {
-        detail: { message: 'Unable to send friend request. User email not found.', type: 'error' }
+        detail: { message: 'Unable to send friend request. User not found.', type: 'error' }
       }));
       return;
     }
 
-    const friendId = friendUser?.userId || friendUser?.id;
     setAddingFriend((prev) => ({ ...prev, [friendId]: true }));
 
     try {
-      const response = await sendFriendRequest(userEmail, friendEmail);
+      const response = await sendFriendRequest(userEmail, friendId);
       console.log('Friend request sent:', response);
 
       // Dispatch event for other components (need)
@@ -104,6 +102,56 @@ const DashboardRightSidebar = ({ onClose }) => {
       }
     } finally {
       setAddingFriend((prev) => {
+        const updated = { ...prev };
+        delete updated[friendId];
+        return updated;
+      });
+    }
+  };
+
+  const [cancellingFriend, setCancellingFriend] = useState({});
+  const [hoveredButton, setHoveredButton] = useState({});
+
+  const handleCancelFriend = async (friendUser) => {
+    const userEmail = user?.email || getStoredUserEmail();
+    const friendId = friendUser?.id || friendUser?.userId;
+
+    if (!userEmail || !friendId) return;
+
+    setCancellingFriend((prev) => ({ ...prev, [friendId]: true }));
+
+    try {
+      await cancelFriendRequest(userEmail, friendId);
+      setRequested((prev) => ({ ...prev, [friendId]: false }));
+
+      setSearchResults((prev) =>
+        prev.map((u) => {
+          if ((u.id || u.userId) === friendId) {
+            return { ...u, friendshipStatus: 'NONE' };
+          }
+          return u;
+        })
+      );
+
+      const friendName =
+        friendUser?.firstName && friendUser?.lastName
+          ? `${friendUser.firstName} ${friendUser.lastName}`
+          : friendUser?.firstName || friendUser?.username || friendUser?.email || 'user';
+
+      window.dispatchEvent(
+        new CustomEvent('toast', {
+          detail: { message: `Friend request to ${friendName} cancelled`, type: 'info' },
+        })
+      );
+    } catch (e) {
+      console.error('Failed to cancel friend request:', e);
+      window.dispatchEvent(
+        new CustomEvent('toast', {
+          detail: { message: e.message || 'Failed to cancel friend request', type: 'error' },
+        })
+      );
+    } finally {
+      setCancellingFriend((prev) => {
         const updated = { ...prev };
         delete updated[friendId];
         return updated;
@@ -176,41 +224,32 @@ const DashboardRightSidebar = ({ onClose }) => {
         {!searchLoading && !searchError && searchQuery.trim().length >= 2 && (
           <div className="space-y-3 mb-4">
             {searchResults.length > 0 ? (
-              searchResults.map((user, idx) => {
-                // Format name using firstName and lastName if available
+              searchResults.map((userItem, idx) => {
                 let displayName = 'Unknown User';
-                if (user.firstName && user.lastName) {
-                  displayName = `${user.firstName} ${user.lastName}`;
-                } else if (user.firstName) {
-                  displayName = user.firstName;
-                } else if (user.username) {
-                  displayName = user.username;
-                } else if (user.name) {
-                  displayName = user.name;
-                } else if (user.email) {
-                  displayName = user.email.split('@')[0];
+                if (!userItem || typeof userItem !== 'object') {
+                  displayName = 'Unknown User';
+                } else if (userItem.firstName && userItem.lastName) {
+                  displayName = `${userItem.firstName} ${userItem.lastName}`;
+                } else if (userItem.firstName) {
+                  displayName = userItem.firstName;
+                } else if (userItem.username) {
+                  displayName = userItem.username;
+                } else if (userItem.name) {
+                  displayName = userItem.name;
+                } else if (userItem.email) {
+                  displayName = userItem.email.split('@')[0];
                 }
-                const email = user.email || '';
-                const avatarUrl = user.avatarUrl || user.avatar || '/avatars/avatar-1.png';
+                const subtitleText = userItem.username ? `@${userItem.username}` : '';
+                const avatarUrl = userItem.avatarUrl || userItem.avatar || '/avatars/avatar-1.png';
                 
-                const friendshipStatus = user.friendshipStatus;
-                const friendId = user?.userId || user?.id;
-                const isRequestSent = friendshipStatus === 'REQUEST_SENT';
+                const friendshipStatus = userItem.friendshipStatus;
+                const friendId = userItem?.userId || userItem?.id;
                 const isFriend = friendshipStatus === 'FRIEND';
-                const isJustRequested = requested[friendId];
-                const isDisabled = addingFriend[friendId] || isRequestSent || isFriend || isJustRequested;
+                const isRequested = requested[friendId] !== undefined ? requested[friendId] : friendshipStatus === 'REQUEST_SENT';
+                const isBusy = addingFriend[friendId] || cancellingFriend[friendId];
 
-                let buttonText = 'Add Friend';
-                if (addingFriend[friendId]) {
-                  buttonText = 'Sending...';
-                } else if (isFriend) {
-                  buttonText = 'Already Friend';
-                } else if (isRequestSent || isJustRequested) {
-                  buttonText = 'Requested';
-                }
-                
                 return (
-                  <div key={user.userId || user.id || email || idx} className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
+                  <div key={userItem.userId || userItem.id || idx} className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                         {avatarUrl ? (
@@ -232,19 +271,47 @@ const DashboardRightSidebar = ({ onClose }) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-gray-800 text-sm font-medium truncate">{displayName}</div>
-                        {email && (
-                          <div className="text-xs text-gray-600 mt-0.5 truncate">{email}</div>
+                        {subtitleText && (
+                          <div className="text-xs text-gray-500 mt-0.5 truncate">{subtitleText}</div>
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleAddFriend(user)}
-                      disabled={isDisabled}
-                      className={`px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${isDisabled ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                    >
-                      {!isFriend && <img src="/icons/add_frnd.svg" alt="Add friend" className="w-4 h-4" />}
-                      {buttonText}
-                    </button>
+
+                    {isFriend ? (
+                      <button
+                        disabled
+                        className="px-3 py-1.5 bg-gray-300 text-gray-700 text-xs font-medium rounded-md cursor-not-allowed flex-shrink-0"
+                      >
+                        Already Friend
+                      </button>
+                    ) : isRequested ? (
+                      <button
+                        onClick={() => handleCancelFriend(userItem)}
+                        onMouseEnter={() => setHoveredButton((prev) => ({ ...prev, [friendId]: true }))}
+                        onMouseLeave={() => setHoveredButton((prev) => ({ ...prev, [friendId]: false }))}
+                        disabled={isBusy}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex-shrink-0 flex items-center gap-1 cursor-pointer ${
+                          hoveredButton[friendId]
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-purple-100 text-purple-700 border border-purple-300 hover:bg-red-600 hover:text-white'
+                        }`}
+                      >
+                        {cancellingFriend[friendId]
+                          ? 'Cancelling...'
+                          : hoveredButton[friendId]
+                          ? 'Cancel Request'
+                          : 'Requested'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAddFriend(userItem)}
+                        disabled={isBusy}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <img src="/icons/add_frnd.svg" alt="Add friend" className="w-4 h-4" />
+                        {addingFriend[friendId] ? 'Sending...' : 'Add Friend'}
+                      </button>
+                    )}
                   </div>
                 );
               })

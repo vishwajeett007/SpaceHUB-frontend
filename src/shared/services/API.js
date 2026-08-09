@@ -39,6 +39,7 @@ export {
   getLocalGroupSettings,
   getMyCommunities,
   joinCommunity,
+  cancelJoinCommunity,
   joinLocalGroup,
   leaveCommunity,
   rejectJoinRequest,
@@ -47,10 +48,12 @@ export {
 } from './api/communities';
 
 export {
+  cancelFriendRequest,
   deleteNotificationByReference,
   getChatHistory,
   getFriendMessages,
   getFriendsList,
+  getNotifications,
   removeFriend,
   respondToFriendRequest,
   searchUsers,

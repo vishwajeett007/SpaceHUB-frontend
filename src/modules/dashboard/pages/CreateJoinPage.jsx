@@ -11,6 +11,7 @@ import { addCommunity, addLocalGroup } from '../../../shared/store/slices/dashbo
 import MobileHamburgerMenu from '../components/MobileHamburgerMenu';
 import InboxModal from '../components/InboxModal';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { selectUnreadCount } from '../../../shared/store/slices/inboxSlice';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const CreateJoinPage = () => {
@@ -19,6 +20,7 @@ const CreateJoinPage = () => {
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const showInbox = useSelector(selectShowInbox);
+  const unreadCount = useSelector(selectUnreadCount);
   const [mode, setMode] = useState('menu'); // 'menu', 'create', 'desc', 'done', 'join'
   const [kind, setKind] = useState('group'); // 'group' or 'community'
   const [doneSubtitle, setDoneSubtitle] = useState('');
@@ -217,10 +219,13 @@ const CreateJoinPage = () => {
         </div>
         <button 
           onClick={() => dispatch(setShowInbox(true))}
-          className="p-2 -mr-2 text-gray-700 hover:text-gray-900"
+          className="relative p-2 -mr-2 text-gray-700 hover:text-gray-900"
           title="Inbox"
         >
           <img src="/icons/inbox.svg" alt="Inbox" className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white pointer-events-none" />
+          )}
         </button>
       </div>
 

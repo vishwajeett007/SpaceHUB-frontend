@@ -6,31 +6,47 @@ const handleCommunityJson = (response) => handleJsonResponse(response, {
 });
 
 export async function createCommunity({ name, description, imageFile }) {
-  const formData = new FormData();
-  formData.append('name', name);
-  formData.append('description', description);
+  let avatarUrl = '';
   if (imageFile) {
-    formData.append('imageFile', imageFile);
+    try {
+      avatarUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result || '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(imageFile);
+      });
+    } catch (e) {
+      console.warn('Failed to read image as data URL:', e);
+    }
   }
 
   const response = await authenticatedFetch(`${BASE_URL}community/create`, {
     method: 'POST',
-    body: formData
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, description, avatarUrl })
   });
   return handleCommunityJson(response);
 }
 
 export async function createLocalGroup({ name, description, imageFile }) {
-  const formData = new FormData();
-  formData.append('name', name);
-  formData.append('description', description);
+  let avatarUrl = '';
   if (imageFile) {
-    formData.append('imageFile', imageFile);
+    try {
+      avatarUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result || '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(imageFile);
+      });
+    } catch (e) {
+      console.warn('Failed to read image as data URL:', e);
+    }
   }
 
   const response = await authenticatedFetch(`${BASE_URL}local-group/create`, {
     method: 'POST',
-    body: formData
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, description, avatarUrl })
   });
   return handleCommunityJson(response);
 }
@@ -110,13 +126,20 @@ export async function deleteCommunity({ name }) {
   return handleCommunityJson(response);
 }
 
-export async function leaveCommunity({ communityName }) {
+export async function leaveCommunity(target) {
+  const communityIdentifier = typeof target === 'object'
+    ? (target?.communityId || target?.communityName || target?.name || '')
+    : target;
+
   const response = await authenticatedFetch(`${BASE_URL}community/leave`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ communityName })
+    body: JSON.stringify({
+      communityId: communityIdentifier,
+      communityName: communityIdentifier
+    })
   });
   return handleCommunityJson(response);
 }
@@ -161,14 +184,15 @@ export async function acceptCommunityInvite({ communityId, inviteCode }) {
   return handleCommunityJson(response);
 }
 
-export async function joinCommunity(communityName) {
+export async function joinCommunity(communityIdentifier) {
   const response = await authenticatedFetch(`${BASE_URL}community/requestJoin`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      communityName: communityName
+      communityId: communityIdentifier,
+      communityName: communityIdentifier
     })
   });
   return handleCommunityJson(response);
@@ -268,4 +292,18 @@ export async function acceptLocalGroupInvite({ groupId, inviteCode }) {
     body: JSON.stringify({ groupId, inviteCode })
   });
   return handleJson(response);
+}
+
+export async function cancelJoinCommunity(communityIdentifier) {
+  const response = await authenticatedFetch(`${BASE_URL}community/cancelJoin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      communityId: communityIdentifier,
+      communityName: communityIdentifier
+    })
+  });
+  return handleCommunityJson(response);
 }

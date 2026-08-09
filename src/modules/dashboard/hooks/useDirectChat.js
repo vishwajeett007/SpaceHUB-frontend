@@ -61,7 +61,7 @@ export const useDirectChat = ({ friend, user, userEmail }) => {
   const friendName = formatFriendName(friend);
   const friendAvatar = getFriendAvatar(friend);
   const currentUserName = user?.username || userEmail;
-  const optimisticUserName = user?.username || userEmail.split('@')[0] || 'You';
+  const optimisticUserName = user?.username || (userEmail ? userEmail.split('@')[0] : 'You') || 'You';
   const currentUserAvatar = user?.avatarUrl || DEFAULT_AVATAR;
 
   const createMessageId = useCallback((prefix) => {

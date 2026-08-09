@@ -1,5 +1,7 @@
+import { useSelector } from 'react-redux';
 import logo from '../../../../../assets/landing/logo-removebg-preview.svg';
 import { useCommunitySettings } from '../hooks/useCommunitySettings';
+import { selectUnreadCount } from '../../../../../shared/store/slices/inboxSlice';
 
 const LeaveIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -9,6 +11,7 @@ const LeaveIcon = ({ size = 20 }) => (
 
 export const SettingsHeader = () => {
   const { navigation } = useCommunitySettings();
+  const unreadCount = useSelector(selectUnreadCount);
 
   return (
     <div className="sticky top-0 z-20 bg-white md:bg-gray-200 border-b border-gray-200 md:border-gray-300 h-14 md:h-20 flex items-center px-4 md:rounded-b-xl">
@@ -27,9 +30,12 @@ export const SettingsHeader = () => {
         <button
           onClick={navigation.openInbox}
           title="Inbox"
-          className="w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors"
+          className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors"
         >
           <img src="/icons/inbox.svg" alt="Inbox" className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white pointer-events-none" />
+          )}
         </button>
       </div>
     </div>

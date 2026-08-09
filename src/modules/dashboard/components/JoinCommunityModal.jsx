@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
-import { joinCommunity } from '../../../shared/services/API';
+import { joinCommunity, cancelJoinCommunity } from '../../../shared/services/API';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const JoinCommunityModal = ({ isOpen, onClose, community }) => {
@@ -45,9 +45,9 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
       return;
     }
 
-    const communityName = community.name || '';
-    if (!communityName) {
-      setError('Community name not found');
+    const communityIdentifier = community.id || community.communityId || community.slug || community.name || community.title || '';
+    if (!communityIdentifier) {
+      setError('Community identifier not found');
       return;
     }
 
@@ -55,10 +55,20 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
     setError('');
 
     try {
-      await joinCommunity(communityName, userEmail);
+      const res = await joinCommunity(communityIdentifier, userEmail);
       setSuccess(true);
       
-      // Refresh communities list
+      const isAlready = res?.data?.alreadyMember || res?.alreadyMember;
+      if (isAlready) {
+        window.dispatchEvent(new CustomEvent('toast', {
+          detail: { message: 'You are already a member of this community!', type: 'info' }
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent('toast', {
+          detail: { message: 'Joined community successfully!', type: 'success' }
+        }));
+      }
+
       window.dispatchEvent(new Event('refresh:communities'));
       
       setTimeout(() => {
@@ -71,6 +81,29 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: errorMsg, type: 'error' }
       }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!community) return;
+    const communityIdentifier = community.id || community.communityId || community.slug || community.name || community.title || '';
+    if (!communityIdentifier) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await cancelJoinCommunity(communityIdentifier);
+      setSuccess(true);
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { message: 'Cancelled join request', type: 'info' }
+      }));
+      window.dispatchEvent(new Event('refresh:communities'));
+      setTimeout(() => onClose(), 1200);
+    } catch (err) {
+      setError(err.message || 'Failed to cancel join request');
     } finally {
       setLoading(false);
     }
@@ -118,8 +151,46 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
 
         {success ? (
           <div className="text-center">
-            <div className="text-green-400 text-lg font-semibold mb-4">✓ Request sent!</div>
-            <p className="text-white/80 text-sm">Your join request has been sent to the community.</p>
+            <div className="text-green-400 text-lg font-semibold mb-4">✓ Request processed!</div>
+            <p className="text-white/80 text-sm">Community membership status updated.</p>
+          </div>
+        ) : community.isMember ? (
+          <div className="flex flex-col gap-2.5 md:gap-3">
+            <button
+              onClick={() => {
+                onClose();
+                if (community.slug || community.id) {
+                  window.location.href = `/dashboard/community/${community.slug || community.id}`;
+                }
+              }}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-md text-sm md:text-base font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              View Community (Joined)
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-md text-sm md:text-base font-semibold transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        ) : community.isPending ? (
+          <div className="flex flex-col gap-2.5 md:gap-3">
+            <button
+              onClick={handleCancelRequest}
+              disabled={loading}
+              className="w-full bg-purple-600 hover:bg-red-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-md text-sm md:text-base font-semibold transition-all group flex items-center justify-center"
+            >
+              <span className="group-hover:hidden">Requested</span>
+              <span className="hidden group-hover:inline">Cancel Request</span>
+            </button>
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-md text-sm md:text-base font-semibold transition-colors"
+            >
+              Close
+            </button>
           </div>
         ) : (
           <div className="flex flex-col gap-2.5 md:gap-3">

@@ -7,6 +7,7 @@ import MobileHamburgerMenu from '../components/MobileHamburgerMenu';
 import DashboardRightSidebar from '../components/DashboardRightSidebar';
 import InboxModal from '../components/InboxModal';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { selectUnreadCount } from '../../../shared/store/slices/inboxSlice';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
 const DirectMessagePage = () => {
@@ -16,6 +17,7 @@ const DirectMessagePage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const showInbox = useSelector(selectShowInbox);
+  const unreadCount = useSelector(selectUnreadCount);
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState([]);
   const [filteredFriends, setFilteredFriends] = useState([]);
@@ -44,6 +46,7 @@ const DirectMessagePage = () => {
   }, [dispatch]);
 
   const formatFriendName = (friend) => {
+    if (!friend || typeof friend !== 'object') return 'Unknown';
     if (friend.username) {
       return friend.username;
     }
@@ -55,6 +58,9 @@ const DirectMessagePage = () => {
     }
     if (friend.name) {
       return friend.name;
+    }
+    if (friend.email && typeof friend.email === 'string') {
+      return friend.email.split('@')[0];
     }
     return 'Unknown';
   };
@@ -235,10 +241,13 @@ const DirectMessagePage = () => {
             {/* Inbox Button */}
             <button 
               onClick={() => dispatch(setShowInbox(true))}
-              className="p-2"
+              className="relative p-2"
               title="Inbox"
             >
               <img src="/icons/inbox.svg" alt="Inbox" className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white pointer-events-none" />
+              )}
             </button>
           </div>
         </div>

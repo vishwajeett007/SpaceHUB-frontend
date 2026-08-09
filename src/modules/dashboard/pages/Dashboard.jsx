@@ -328,9 +328,7 @@ const Dashboard = () => {
               className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
               <img src="/icons/inbox.svg" alt="Inbox" className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <span className="text-[0px]">{unreadCount}</span>
-                </span>
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white pointer-events-none" />
               )}
             </button>
           </div>

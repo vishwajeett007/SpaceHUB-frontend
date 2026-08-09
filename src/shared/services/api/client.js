@@ -2,7 +2,7 @@ import { getStoredAuthToken } from '../authStorage';
 import { notifyUnauthorized } from '../authEvents';
 import { dispatchRateLimitToast } from './response';
 
-export const BASE_URL = import.meta.env.VITE_BASE_URL;
+export const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5000/api/v1/';
 
 export const getCookie = (name) => {
   try {
@@ -22,7 +22,7 @@ export const getAuthHeaders = (isFormData = false) => {
   const token = getStoredAuthToken();
   return {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(token && { 'Authorization': `Bearer ${token}` })
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 };
 
@@ -35,8 +35,8 @@ export const authenticatedFetch = async (url, options = {}) => {
     credentials: 'include',
     headers: {
       ...headers,
-      ...options.headers
-    }
+      ...options.headers,
+    },
   });
 
   if (response.status === 429) {

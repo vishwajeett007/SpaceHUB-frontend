@@ -5,6 +5,7 @@ import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { getAllLocalGroups } from '../../../shared/services/API';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { selectUnreadCount } from '../../../shared/store/slices/inboxSlice';
 import CommunityLeftPanel from '../components/community/CommunityLeftPanel';
 import CommunityCenterPanel from '../components/community/CommunityCenterPanel';
 import CommunityRightPanel from '../components/community/CommunityRightPanel';
@@ -220,6 +221,8 @@ const LocalGroupPage = () => {
     );
   }
 
+  const unreadCount = useSelector(selectUnreadCount);
+
   return (
     <div className="h-screen flex flex-col overflow-x-hidden bg-[#E6E6E6] md:bg-gray-100">
       {/* Top Navbar */}
@@ -236,8 +239,11 @@ const LocalGroupPage = () => {
           <button 
             onClick={() => dispatch(setShowInbox(true))}
             title='Inbox'
-            className="w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
+            className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
             <img src="/icons/inbox.svg" alt="Inbox" className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white pointer-events-none" />
+            )}
           </button>
         </div>
       </div>

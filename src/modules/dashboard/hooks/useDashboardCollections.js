@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllLocalGroups, getMyCommunities } from '../../../shared/services/API';
 import { showToast } from '../../../shared/services/toast';
@@ -22,13 +22,28 @@ export const useDashboardCollections = (userEmail) => {
   const error = useSelector(selectDashboardError);
   const loading = useSelector(selectDashboardLoading);
   const localGroups = useSelector(selectLocalGroups);
+  const cacheRestoredRef = useRef({ communities: false, localGroups: false });
 
   const fetchCommunities = useCallback(async () => {
+    // Restore from cache only once on first render (before API call)
+    if (!cacheRestoredRef.current.communities) {
+      cacheRestoredRef.current.communities = true;
+      try {
+        const cached = sessionStorage.getItem('cachedMyCommunities');
+        if (cached) {
+          dispatch(setCommunities(JSON.parse(cached)));
+        }
+      } catch (e) {
+        console.warn('Failed to read cached communities:', e);
+      }
+    }
+
     dispatch(setLoading(true));
     dispatch(setError(''));
 
     if (!userEmail) {
       dispatch(setError('User email not found'));
+      dispatch(setLoading(false));
       return;
     }
 
@@ -36,19 +51,39 @@ export const useDashboardCollections = (userEmail) => {
       const response = await getMyCommunities(userEmail);
       const list = response?.data?.communities || response?.communities || response?.data || [];
       dispatch(setCommunities(list));
+      try {
+        sessionStorage.setItem('cachedMyCommunities', JSON.stringify(list));
+      } catch (e) {
+        console.warn('Failed to cache communities:', e);
+      }
     } catch (requestError) {
       const message = requestError.message || 'Failed to load communities';
       dispatch(setError(message));
       showToast(message, 'error');
+    } finally {
+      dispatch(setLoading(false));
     }
   }, [dispatch, userEmail]);
 
   const fetchLocalGroups = useCallback(async () => {
+    if (!cacheRestoredRef.current.localGroups) {
+      cacheRestoredRef.current.localGroups = true;
+      try {
+        const cached = sessionStorage.getItem('cachedLocalGroups');
+        if (cached) {
+          dispatch(setLocalGroups(JSON.parse(cached)));
+        }
+      } catch (e) {
+        console.warn('Failed to read cached local groups:', e);
+      }
+    }
+
     dispatch(setLoading(true));
     dispatch(setError(''));
 
     if (!userEmail) {
       dispatch(setError('User email not found'));
+      dispatch(setLoading(false));
       return;
     }
 
@@ -60,10 +95,17 @@ export const useDashboardCollections = (userEmail) => {
         || response?.rooms
         || [];
       dispatch(setLocalGroups(list));
+      try {
+        sessionStorage.setItem('cachedLocalGroups', JSON.stringify(list));
+      } catch (e) {
+        console.warn('Failed to cache local groups:', e);
+      }
     } catch (requestError) {
       const message = requestError.message || 'Failed to load local groups';
       dispatch(setError(message));
       showToast(message, 'error');
+    } finally {
+      dispatch(setLoading(false));
     }
   }, [dispatch, userEmail]);
 

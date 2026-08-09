@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getLocalGroupSettings, createLocalGroupInvite, getLocalGroupInvites } from '../../../shared/services/API';
 import InboxModal from '../components/InboxModal';
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { selectUnreadCount } from '../../../shared/store/slices/inboxSlice';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
@@ -13,6 +14,7 @@ const LocalGroupSettingsPage = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const showInbox = useSelector(selectShowInbox);
+  const unreadCount = useSelector(selectUnreadCount);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [settings, setSettings] = useState(null);
@@ -225,8 +227,11 @@ const LocalGroupSettingsPage = () => {
           <button 
             onClick={() => dispatch(setShowInbox(true))}
             title='Inbox'
-            className="w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
+            className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
             <img src="/icons/inbox.svg" alt="Inbox" className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white pointer-events-none" />
+            )}
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { acceptJoinRequest, rejectJoinRequest, respondToFriendRequest, getPresignedDownloadUrl, deleteNotificationByReference } from '../../../shared/services/API';
+import { acceptJoinRequest, rejectJoinRequest, respondToFriendRequest, getPresignedDownloadUrl, deleteNotificationByReference, getNotifications } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import webSocketService from '../../../shared/services/WebSocketService';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
@@ -81,9 +81,10 @@ const InboxModal = ({ isOpen, onClose }) => {
 
 
   const transformFriendRequest = useCallback((req, idx = 0) => {
+    if (!req || typeof req !== 'object') return null;
 
     if (req.senderName || req.senderEmail) {
-      const displayName = req.senderName || req.senderEmail?.split('@')[0] || 'Unknown User';
+      const displayName = req.senderName || (req.senderEmail ? req.senderEmail.split('@')[0] : 'Unknown User');
       const avatarFile = req.senderProfileImageUrl && !req.senderProfileImageUrl.startsWith('http') 
         ? req.senderProfileImageUrl 
         : null;
@@ -109,26 +110,26 @@ const InboxModal = ({ isOpen, onClose }) => {
       };
     }
     
-          let displayName = 'Unknown User';
-          if (req.username) {
-            displayName = req.username;
+    let displayName = 'Unknown User';
+    if (req.username) {
+      displayName = req.username;
     } else if (req.name) {
       displayName = req.name;
     } else if (req.email || req.requesterEmail) {
       displayName = (req.email || req.requesterEmail).split('@')[0];
-          }
-          
-          return {
-            id: `friend-${req.id || req.requesterEmail || req.email || idx}`,
-            type: 'friend',
-            name: displayName,
-            requester: displayName,
-            requesterEmail: req.email || req.requesterEmail,
-            userId: req.id || req.userId,
-            firstName: req.firstName,
-            lastName: req.lastName,
-            avatar: req.avatar || req.avatarUrl || req.profileImage || null
-          };
+    }
+    
+    return {
+      id: `friend-${req.id || req.requesterEmail || req.email || idx}`,
+      type: 'friend',
+      name: displayName,
+      requester: displayName,
+      requesterEmail: req.email || req.requesterEmail,
+      userId: req.id || req.userId,
+      firstName: req.firstName,
+      lastName: req.lastName,
+      avatar: req.avatar || req.avatarUrl || req.profileImage || null
+    };
   }, [avatarUrls]);
 
   const transformCommunityRequest = useCallback((req, communityId, communityName) => {
@@ -346,22 +347,40 @@ const InboxModal = ({ isOpen, onClose }) => {
     };
   }, [user, dispatch, isOpen, transformFriendRequest, transformCommunityRequest]);
 
+  const fetchNotificationsHttp = useCallback(async () => {
+    try {
+      const response = await getNotifications();
+      const data = response?.data || response;
+      if (data && data.friendRequests) {
+        const friendReqs = Array.isArray(data.friendRequests)
+          ? data.friendRequests.map((req, idx) => transformFriendRequest(req, idx))
+          : [];
+        const currentReqs = requestsRef.current || [];
+        const existingNonFriend = currentReqs.filter((r) => r.type !== 'friend');
+        dispatch(setRequests([...existingNonFriend, ...friendReqs]));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch notifications via HTTP:', e);
+    }
+  }, [dispatch, transformFriendRequest]);
+
+  useEffect(() => {
+    fetchNotificationsHttp();
+  }, [fetchNotificationsHttp]);
+
   // Request notifications when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
     dispatch(setLoading(true));
-    
+    fetchNotificationsHttp().finally(() => {
+      dispatch(setLoading(false));
+    });
+
     if (webSocketService.isConnected()) {
       webSocketService.requestNotifications();
-      const loadingTimeout = setTimeout(() => {
-        dispatch(setLoading(false));
-      }, 5000);
-      return () => clearTimeout(loadingTimeout);
-    } else {
-      dispatch(setLoading(false));
     }
-  }, [isOpen, dispatch]);
+  }, [isOpen, dispatch, fetchNotificationsHttp]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

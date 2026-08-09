@@ -8,14 +8,33 @@ export async function searchUsers(query, email, page = 0, size = 10) {
   return handleJson(response);
 }
 
-export async function sendFriendRequest(userEmail, friendEmail) {
+export async function sendFriendRequest(userEmail, friendIdentifier) {
   void userEmail;
+  // Support both friendId (UUID) and friendEmail
+  const isEmail = typeof friendIdentifier === 'string' && friendIdentifier.includes('@');
+  const payload = isEmail ? { friendEmail: friendIdentifier } : { friendId: friendIdentifier };
+
   const response = await authenticatedFetch(`${BASE_URL}friends/request`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ friendEmail })
+    body: JSON.stringify(payload)
+  });
+  return handleJson(response);
+}
+
+export async function cancelFriendRequest(userEmail, friendIdentifier) {
+  void userEmail;
+  const isEmail = typeof friendIdentifier === 'string' && friendIdentifier.includes('@');
+  const payload = isEmail ? { friendEmail: friendIdentifier } : { friendId: friendIdentifier };
+
+  const response = await authenticatedFetch(`${BASE_URL}friends/cancel`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
   });
   return handleJson(response);
 }
@@ -27,6 +46,13 @@ export async function getFriendsList() {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({})
+  });
+  return handleJson(response);
+}
+
+export async function getNotifications() {
+  const response = await authenticatedFetch(`${BASE_URL}notifications`, {
+    method: 'GET'
   });
   return handleJson(response);
 }

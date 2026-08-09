@@ -1,16 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { loginUser, getProfileSummary } from '../../../shared/services/API';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { normalizeAuthToken } from '../../../shared/services/authStorage';
 import { showToast } from '../../../shared/services/toast';
 import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
 
-
-
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, updateUser } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -33,14 +32,14 @@ const LoginPage = () => {
 
   useEffect(() => {
     try {
-      const savedIdentifier = sessionStorage.getItem('lastIdentifier');
-      if (savedIdentifier) {
-        setIdentifier(savedIdentifier);
+      const autoFillEmail = location.state?.autoFillEmail || sessionStorage.getItem('lastIdentifier');
+      if (autoFillEmail) {
+        setIdentifier(autoFillEmail);
       }
     } catch (storageError) {
       console.warn('Unable to restore the last login identifier:', storageError);
     }
-  }, []);
+  }, [location.state]);
 
   const hasEmoji = (value) => /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/u.test(value || '');
   const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !hasEmoji(value);
@@ -69,38 +68,52 @@ const LoginPage = () => {
     const identifierToSend = identifier.trim();
     loginUser({ identifier: identifierToSend, password })
       .then(async (data) => {
-        console.log('Login successful');
+        console.log('Login response:', data);
+
+        const isPending = data?.pendingVerification || data?.data?.pendingVerification;
+        const token = normalizeAuthToken(
+          data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token
+        );
+
+        if (isPending) {
+          if (token) {
+            sessionStorage.setItem('registrationToken', token);
+          }
+          sessionStorage.setItem('signupEmail', identifierToSend);
+          sessionStorage.setItem('pendingVerificationEmail', identifierToSend);
+          showToast('Password verified! Redirecting to enter your OTP...', 'info');
+          setTimeout(() => {
+            navigate('/signup', { state: { step: 3, email: identifierToSend, token } });
+          }, 1000);
+          return;
+        }
+
         const resolvedUser = data?.user || data?.data?.user || {};
         const responseEmail = (data?.email || data?.data?.email) ? String(data?.email || data?.data?.email) : undefined;
         const effectiveEmail = resolvedUser?.email || responseEmail || (emailLike ? identifierToSend : undefined);
         const userWithId = { ...resolvedUser, email: effectiveEmail || resolvedUser?.email || responseEmail || '' };
-        const token = normalizeAuthToken(
-          data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token
-        );
 
         if (!token) {
           throw new Error('Login succeeded without an access token. Please try again.');
         }
 
-        // Persist the valid token before loading the authenticated profile.
         login(userWithId, token);
-
 
         try {
           if (effectiveEmail) {
             const profileData = await getProfileSummary(effectiveEmail);
+            const updatedUser = { ...userWithId };
             if (profileData?.data?.profileImage) {
-              userWithId.profileImage = profileData.data.profileImage;
-              userWithId.avatarUrl = profileData.data.profileImage;
+              updatedUser.profileImage = profileData.data.profileImage;
+              updatedUser.avatarUrl = profileData.data.profileImage;
             }
             if (profileData?.data?.username) {
-              userWithId.username = profileData.data.username;
+              updatedUser.username = profileData.data.username;
             }
-            updateUser(userWithId);
+            updateUser(updatedUser);
           }
         } catch (error) {
           console.error('Failed to fetch profile summary:', error);
-
         }
 
         const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
@@ -134,13 +147,11 @@ const LoginPage = () => {
     const value = e.target.value;
     setIdentifier(value);
     setInvalidCredentials(false);
-
     setIdentifierError(false);
   };
 
   const handlePasswordChange = (e) => {
     let value = e.target.value;
-    // Filter out emojis from password
     value = value.replace(/[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/gu, '');
     setPassword(value);
     setInvalidCredentials(false);
@@ -153,10 +164,8 @@ const LoginPage = () => {
         description="Log in to your SpaceHUB account to access your workspace, chat with team members, and collaborate in real-time."
         keywords="SpaceHUB login, sign in, team login, workspace access"
         url="https://www.spacehubx.me/login"
-
       />
       <style>
-
         {`
           .password-input[type="password"]:not([data-show="true"]):not(:placeholder-shown) {
             -webkit-text-security: disc;
@@ -203,7 +212,7 @@ const LoginPage = () => {
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M22 7.53516V17.0002C22 17.7654 21.7077 18.5017 21.1827 19.0584C20.6578 19.6152 19.9399 19.9503 19.176 19.9952L19 20.0002H5C4.23479 20.0002 3.49849 19.7078 2.94174 19.1829C2.38499 18.6579 2.04989 17.9401 2.005 17.1762L2 17.0002V7.53516L11.445 13.8322L11.561 13.8982C11.6977 13.965 11.8478 13.9997 12 13.9997C12.1522 13.9997 12.3023 13.965 12.439 13.8982L12.555 13.8322L22 7.53516Z" fill="#ADADAD" />
+                      <path d="M22 7.53516V17.0002C22 17.7654 21.7077 18.5017 21.1827 19.0584C20.6578 19.6152 19.9399 19.9503 19.176 19.9952L19 20.0002H5C4.23479 20.0002 3.49849 19.7078 2.94174 19.1829C2.38499 18.6579 2.04989 17.9401 2.005 17.1762L2 17.0002V7.53516L11.445 13.8322L11.561 13.8982L11.6977 13.965 11.8478 13.9997 12 13.9997C12.1522 13.9997 12.3023 13.965 12.439 13.8982L12.555 13.8322L22 7.53516Z" fill="#ADADAD" />
                       <path d="M19 4C20.08 4 21.027 4.57 21.555 5.427L12 11.797L2.44501 5.427C2.6958 5.01982 3.0403 4.6785 3.44978 4.43149C3.85926 4.18448 4.32186 4.03894 4.79901 4.007L5.00001 4H19Z" fill="#ADADAD" />
                     </svg>
                   </div>
@@ -251,10 +260,7 @@ const LoginPage = () => {
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                     <button
                       type="button"
-                      onClick={() => {
-                        console.log('Eye button clicked, current showPassword:', showPassword);
-                        setShowPassword(!showPassword);
-                      }}
+                      onClick={() => setShowPassword(!showPassword)}
                       className="text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                     >
                       {showPassword ? (

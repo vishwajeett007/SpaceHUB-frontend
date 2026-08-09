@@ -103,7 +103,15 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
               onClick={() => handleNavigation('discover')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-md text-gray-700 hover:bg-black hover:text-white transition-colors"
             >
-              <img src="/icons/discover.svg" alt="Discover" className="w-5 h-5" />
+              <svg 
+                className="w-5 h-5" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 9.172l-2.12 4.243-4.243 2.12 2.12-4.243 4.243-2.12z" />
+              </svg>
               <span className="font-medium">Discover</span>
             </button>
 

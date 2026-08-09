@@ -6,15 +6,17 @@ const CommunityCard = ({ community, onClick, isMobile = false }) => {
   const title = community.name || 'Untitled';
   const desc = community.description || '';
   const bannerImg = community.bannerUrl || '';
-  const profileImg = community.imageUrl || community.imageURL || '';
-  const members = community.memberCount ?? community.totalMembers ?? community.members ?? 0;
+  const profileImg = community.avatarUrl || community.imageUrl || community.imageURL || '';
+  const members = typeof community._count?.members === 'number' 
+    ? community._count.members 
+    : (community.memberCount ?? community.totalMembers ?? community.members ?? 0);
   const [bannerError, setBannerError] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const showMembers = members !== null && members !== undefined && members !== '';
 
   const safeUrl = (rawUrl) => {
     if (!rawUrl) return '';
-    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) {
       return rawUrl;
     }
     return `${BASE_URL}${rawUrl}`;
@@ -168,14 +170,25 @@ const SkeletonCard = ({ isMobile = false }) => {
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
-  const [communities, setCommunities] = useState([]);
+  const [communities, setCommunities] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('cachedDiscoverCommunities');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const scrollContainerRef = useRef(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -186,22 +199,51 @@ const Discover = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const fetchCommunities = async (page = 0, size = 30) => {
-    setLoading(true);
+  const fetchCommunities = async (pageToFetch = 0, isAppend = false) => {
+    if (isAppend) {
+      setLoadingMore(true);
+    } else {
+      if (communities.length === 0) setLoading(true);
+    }
     setError('');
+
     try {
       const userDataRaw = sessionStorage.getItem('userData');
       const userEmail = userDataRaw ? (JSON.parse(userDataRaw)?.email || JSON.parse(userDataRaw)?.userEmail) : (sessionStorage.getItem('lastEmail') || sessionStorage.getItem('lastIdentifier') || '');
       const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('size', String(size));
+      params.set('page', String(pageToFetch));
+      params.set('size', '20');
       if (userEmail) params.set('currentUserEmail', userEmail);
       const url = `${BASE_URL}community/discover?${params.toString()}`;
       const res = await authenticatedFetch(url, { method: 'GET' });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error((data && (data.message || data.error)) || `HTTP ${res.status}`);
-      const list = data?.data?.communities || [];
-      setCommunities(list);
+      
+      const rawData = data?.data;
+      const list = Array.isArray(rawData) 
+        ? rawData 
+        : (rawData?.communities || data?.communities || []);
+
+      if (list.length < 20) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+
+      if (isAppend) {
+        setCommunities((prev) => {
+          const existingIds = new Set(prev.map((c) => String(c.id || c.communityId)));
+          const uniqueNew = list.filter((c) => !existingIds.has(String(c.id || c.communityId)));
+          return [...prev, ...uniqueNew];
+        });
+      } else {
+        setCommunities(list);
+        try {
+          sessionStorage.setItem('cachedDiscoverCommunities', JSON.stringify(list));
+        } catch (e) {
+          console.warn('Failed to cache discover communities:', e);
+        }
+      }
     } catch (e) {
       const errorMsg = e.message || 'Failed to fetch communities';
       setError(errorMsg);
@@ -210,12 +252,25 @@ const Discover = () => {
       }));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchCommunities(0, 20);
+    fetchCommunities(0, false);
   }, []);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current || loading || loadingMore || !hasMore || searchQuery.trim().length >= 3) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    if (scrollHeight - scrollTop - clientHeight < 150) {
+      setPage((prevPage) => {
+        const nextPage = prevPage + 1;
+        fetchCommunities(nextPage, true);
+        return nextPage;
+      });
+    }
+  };
 
   // Remote search when 3+ characters
   useEffect(() => {
@@ -265,7 +320,11 @@ const Discover = () => {
   };
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col h-[calc(100vh-56px)] overflow-y-auto bg-[#E6E6E6] md:bg-gray-100">
+    <div 
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="flex-1 min-w-0 flex flex-col h-[calc(100vh-56px)] overflow-y-auto bg-[#E6E6E6] md:bg-gray-100"
+    >
       {/* Desktop Header */}
       <div className="hidden md:block bg-gray-200 border-b border-gray-500 px-4 sm:px-6 py-4 flex-shrink-0 rounded-t-xl">
         <div className="flex items-center justify-between gap-4">
@@ -320,7 +379,7 @@ const Discover = () => {
       {/* Body */}
       <div className="flex-1 p-4 sm:p-6">
         {/* Loading and error states */}
-        {(searching || (!searching && loading)) && (
+        {(searching || (!searching && loading && communities.length === 0)) && (
           <div className="grid grid-cols-2 md:grid-cols-1 md:sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 max-w-7xl">
             {Array.from({ length: 6 }).map((_, idx) => (
               <SkeletonCard key={idx} isMobile={isMobile} />
@@ -331,7 +390,7 @@ const Discover = () => {
         {!searching && error && <div className="text-red-600">{error}</div>}
 
         {/* Results grid - Mobile: 2 columns, Desktop: 3 columns */}
-        {!searching && !loading && !error && (
+        {!searching && (!loading || communities.length > 0) && !error && (
           <div className="grid grid-cols-2 md:grid-cols-1 md:sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 max-w-7xl">
             {(searchQuery.trim().length >= 3 ? searchResults : communities).map((community) => (
               <CommunityCard 
@@ -344,6 +403,14 @@ const Discover = () => {
             {searchQuery.trim().length >= 3 && !searching && searchResults.length === 0 && (
               <div className="text-gray-600 col-span-2 md:col-span-3">No communities found.</div>
             )}
+          </div>
+        )}
+
+        {/* Infinite Scroll loading indicator */}
+        {loadingMore && (
+          <div className="flex justify-center items-center py-6">
+            <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="ml-2 text-sm text-gray-600 font-medium">Loading more communities...</span>
           </div>
         )}
       </div>

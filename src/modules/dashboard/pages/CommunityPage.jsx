@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
-import { getAllCommunities } from '../../../shared/services/API';
+import { getAllCommunities, getMyCommunities, joinCommunity } from '../../../shared/services/API';
 import { SEO } from '../../../shared';
 
 import { selectShowInbox, setShowInbox } from '../../../shared/store/slices/uiSlice';
+import { selectUnreadCount } from '../../../shared/store/slices/inboxSlice';
 import CommunityLeftPanel from '../components/community/CommunityLeftPanel';
 import CommunityCenterPanel from '../components/community/CommunityCenterPanel';
 import CommunityRightPanel from '../components/community/CommunityRightPanel';
@@ -19,6 +20,8 @@ const CommunityPage = () => {
   const dispatch = useDispatch();
   const { logout, user } = useAuth();
   const [community, setCommunity] = useState(null);
+  const [isJoined, setIsJoined] = useState(true);
+  const [joining, setJoining] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const getIsMobileView = () => (typeof window !== 'undefined' ? window.innerWidth <= 640 : false);
@@ -37,23 +40,36 @@ const CommunityPage = () => {
       setLoading(true);
       setError('');
       try {
-        const res = await getAllCommunities();
+        const [res, myRes] = await Promise.all([
+          getAllCommunities(),
+          getMyCommunities()
+        ]);
         const list = res?.data?.communities || res?.communities || res?.data || [];
+        const myCommunitiesList = myRes?.data?.communities || myRes?.communities || myRes?.data || [];
+
         // Convert id to string for comparison, and also check if API returns numbers
         const found = list.find(
           (c) => 
             String(c.id) === String(id) || 
             String(c.communityId) === String(id) || 
             String(c.community_id) === String(id) ||
+            String(c.slug) === String(id) ||
             c.id === Number(id) ||
             c.communityId === Number(id) ||
             c.community_id === Number(id)
         );
+
         if (found) {
           setCommunity(found);
+          const foundIdStr = String(found.id || found.communityId || found.slug);
+          const userHasJoined = myCommunitiesList.some(
+            (c) => 
+              String(c.id) === foundIdStr || 
+              String(c.communityId) === foundIdStr || 
+              String(c.slug) === foundIdStr
+          );
+          setIsJoined(userHasJoined);
         } else {
-          console.log('Looking for ID:', id);
-          console.log('Available communities:', list.map(c => ({ id: c.id, communityId: c.communityId, community_id: c.community_id })));
           setError('Community not found');
         }
       } catch (e) {
@@ -67,6 +83,24 @@ const CommunityPage = () => {
       fetchCommunity();
     }
   }, [id]);
+
+  const handleJoin = async () => {
+    setJoining(true);
+    try {
+      await joinCommunity(community?.id || community?.name || id);
+      setIsJoined(true);
+      window.dispatchEvent(new Event('refresh:communities'));
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { message: `Joined ${community?.name || 'community'} successfully!`, type: 'success' }
+      }));
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { message: err.message || 'Failed to join community', type: 'error' }
+      }));
+    } finally {
+      setJoining(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -144,6 +178,42 @@ const CommunityPage = () => {
           >
             Back to Dashboard
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isJoined) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#E6E6E6] md:bg-gray-100 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-gray-200">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-2xl overflow-hidden">
+            {community.avatarUrl ? (
+              <img src={community.avatarUrl} alt={community.name} className="w-full h-full object-cover" />
+            ) : (
+              community.name?.charAt(0).toUpperCase() || 'C'
+            )}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">{community.name}</h2>
+          <p className="text-gray-600 text-sm mb-6">{community.description || 'Welcome to this community workspace!'}</p>
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg p-3 mb-6">
+            You must join this community before accessing its channels and messages.
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleBack}
+              className="flex-1 py-2.5 px-4 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleJoin}
+              disabled={joining}
+              className="flex-1 py-2.5 px-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {joining ? 'Joining...' : 'Join Community'}
+            </button>
+          </div>
         </div>
       </div>
     );

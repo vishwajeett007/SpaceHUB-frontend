@@ -90,9 +90,13 @@ const authSlice = createSlice({
     updateUser: (state, action) => {
       try {
         const updatedUserData = action.payload;
-        if (state.isAuthenticated && state.token && updatedUserData) {
-          sessionStorage.setItem('userData', JSON.stringify(updatedUserData));
-          state.user = updatedUserData;
+        if (updatedUserData) {
+          const mergedUser = { ...(state.user || {}), ...updatedUserData };
+          sessionStorage.setItem('userData', JSON.stringify(mergedUser));
+          state.user = mergedUser;
+          if (state.token || getStoredAuthToken()) {
+            state.isAuthenticated = true;
+          }
         }
       } catch (error) {
         console.error('Error updating user data:', error);

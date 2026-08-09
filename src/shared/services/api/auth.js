@@ -2,7 +2,7 @@ import { BASE_URL } from './client';
 import { handleJson } from './response';
 
 export async function registerUser(payload) {
-  const response = await fetch(`${BASE_URL}registration`, {
+  const response = await fetch(`${BASE_URL}register`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -22,7 +22,7 @@ export async function loginUser(payload) {
 }
 
 export async function requestForgotPassword(email) {
-  const response = await fetch(`${BASE_URL}forgotpassword`, {
+  const response = await fetch(`${BASE_URL}forgot-password`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -32,7 +32,7 @@ export async function requestForgotPassword(email) {
 }
 
 export async function validateOtp(payload) {
-  const response = await fetch(`${BASE_URL}validateforgototp`, {
+  const response = await fetch(`${BASE_URL}validate-forgot-otp`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -42,7 +42,7 @@ export async function validateOtp(payload) {
 }
 
 export async function resetPassword(payload) {
-  const response = await fetch(`${BASE_URL}resetpassword`, {
+  const response = await fetch(`${BASE_URL}reset-password`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -52,7 +52,7 @@ export async function resetPassword(payload) {
 }
 
 export async function resendRegisterOtp(email, registrationToken) {
-  const response = await fetch(`${BASE_URL}resendotp`, {
+  const response = await fetch(`${BASE_URL}resend-otp`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -62,7 +62,7 @@ export async function resendRegisterOtp(email, registrationToken) {
 }
 
 export async function resendForgotOtp(forgotToken) {
-  const response = await fetch(`${BASE_URL}resendforgototp`, {
+  const response = await fetch(`${BASE_URL}resend-forgot-otp`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -72,7 +72,7 @@ export async function resendForgotOtp(forgotToken) {
 }
 
 export async function validateRegisterOtp(payload) {
-  const response = await fetch(`${BASE_URL}validateregisterotp`, {
+  const response = await fetch(`${BASE_URL}validate-register-otp`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

@@ -18,12 +18,13 @@ const getComparableTime = (message) => {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
-export const formatFriendName = (friend = {}) => {
+export const formatFriendName = (friend) => {
+  if (!friend || typeof friend !== 'object') return 'Unknown';
   if (friend.username) return friend.username;
 
   const fullName = [friend.firstName, friend.lastName].filter(Boolean).join(' ').trim();
   if (fullName) return fullName;
-  if (friend.email) return friend.email.split('@')[0];
+  if (friend.email && typeof friend.email === 'string') return friend.email.split('@')[0];
 
   return 'Unknown';
 };

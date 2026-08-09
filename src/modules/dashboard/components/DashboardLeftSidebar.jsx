@@ -30,7 +30,11 @@ const FriendAvatar = ({ avatar, username, firstName, isSelected }) => {
   }, [avatar]);
 
   if (!avatar || imageError) {
-    const initial = firstName ? firstName.charAt(0).toUpperCase() : username.charAt(0).toUpperCase();
+    const initial = (firstName && String(firstName).length > 0)
+      ? String(firstName).charAt(0).toUpperCase()
+      : (username && String(username).length > 0)
+        ? String(username).charAt(0).toUpperCase()
+        : 'U';
     return (
       <span 
         className={`text-xs font-semibold ${
@@ -299,7 +303,15 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
                 : 'text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <img src="/icons/discover.svg" alt="Discover" className="w-6 h-6" />
+            <svg 
+              className={`w-5 h-5 ${selectedView === 'discover' ? 'text-white' : 'text-gray-700'}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 9.172l-2.12 4.243-4.243 2.12 2.12-4.243 4.243-2.12z" />
+            </svg>
             <span className="font-medium">Discover</span>
           </button>
 

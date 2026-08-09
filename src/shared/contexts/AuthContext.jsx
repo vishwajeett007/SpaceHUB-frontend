@@ -40,7 +40,12 @@ export const AuthProvider = ({ children }) => {
       webSocketService.disconnect();
       previousUserEmailRef.current = null;
       dispatch(logout({ preserveProfileSetup: true }));
-      showToast('Your session has expired. Please log in again.', 'error');
+
+      // Do not display session expired toast on public auth pages
+      const publicAuthPaths = ['/login', '/signup', '/forgot-password', '/reset-password', '/'];
+      if (!publicAuthPaths.includes(window.location.pathname)) {
+        showToast('Your session has expired. Please log in again.', 'error');
+      }
     };
 
     window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
@@ -50,7 +55,6 @@ export const AuthProvider = ({ children }) => {
   // WebSocket connection management - persists across entire app
   useEffect(() => {
     if (!isAuthenticated || !user?.email) {
-      // Disconnect if not authenticated or no email
       if (previousUserEmailRef.current) {
         webSocketService.disconnect();
         previousUserEmailRef.current = null;
@@ -60,27 +64,17 @@ export const AuthProvider = ({ children }) => {
 
     const userEmail = user.email;
 
-    // Only connect if email changed or not connected
     if (previousUserEmailRef.current !== userEmail) {
-      // Disconnect previous connection if switching users
       if (previousUserEmailRef.current) {
         webSocketService.disconnect();
       }
       previousUserEmailRef.current = userEmail;
-      console.log('AuthProvider: Connecting WebSocket for user:', userEmail);
       webSocketService.connect(userEmail);
     } else {
-      // Same email, just ensure connected (won't reconnect if already connected)
       if (!webSocketService.isConnected()) {
-        console.log('AuthProvider: Reconnecting WebSocket for user:', userEmail);
         webSocketService.connect(userEmail);
       }
     }
-
-    return () => {
-      // Don't disconnect on unmount - keep connection alive across route changes
-      // Only disconnect on logout (handled in handleLogout)
-    };
   }, [isAuthenticated, user?.email]);
 
   const handleLogin = (userData, token) => {
@@ -88,8 +82,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleLogout = () => {
-    // Disconnect WebSocket on logout
-    console.log('AuthProvider: Disconnecting WebSocket on logout');
     webSocketService.disconnect();
     previousUserEmailRef.current = null;
     dispatch(logout());
@@ -99,9 +91,7 @@ export const AuthProvider = ({ children }) => {
     dispatch(updateUser(updatedUserData));
   };
 
-  const getToken = () => {
-    return token;
-  };
+  const getToken = () => token;
 
   const checkAuth = () => {
     dispatch(checkAuthStatus());

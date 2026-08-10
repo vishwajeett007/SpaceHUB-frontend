@@ -4,15 +4,15 @@ import { AuthContext } from './AuthContextContext';
 import webSocketService from '../services/WebSocketService';
 import { AUTH_UNAUTHORIZED_EVENT } from '../services/authEvents';
 import { showToast } from '../services/toast';
-import { 
-  checkAuthStatus, 
-  login, 
-  logout, 
+import {
+  checkAuthStatus,
+  login,
+  logout,
   updateUser,
-  selectUser, 
+  selectUser,
   selectToken,
-  selectIsAuthenticated, 
-  selectAuthLoading 
+  selectIsAuthenticated,
+  selectAuthLoading
 } from '../store/slices/authSlice';
 
 export const AuthProvider = ({ children }) => {
@@ -41,7 +41,6 @@ export const AuthProvider = ({ children }) => {
       previousUserEmailRef.current = null;
       dispatch(logout({ preserveProfileSetup: true }));
 
-      // Do not display session expired toast on public auth pages
       const publicAuthPaths = ['/login', '/signup', '/forgot-password', '/reset-password', '/'];
       if (!publicAuthPaths.includes(window.location.pathname)) {
         showToast('Your session has expired. Please log in again.', 'error');
@@ -52,7 +51,6 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
   }, [dispatch, isAuthenticated]);
 
-  // WebSocket connection management - persists across entire app
   useEffect(() => {
     if (!isAuthenticated || !user?.email) {
       if (previousUserEmailRef.current) {

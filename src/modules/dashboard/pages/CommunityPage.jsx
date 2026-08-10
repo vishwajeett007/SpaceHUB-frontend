@@ -47,11 +47,10 @@ const CommunityPage = () => {
         const list = res?.data?.communities || res?.communities || res?.data || [];
         const myCommunitiesList = myRes?.data?.communities || myRes?.communities || myRes?.data || [];
 
-        // Convert id to string for comparison, and also check if API returns numbers
         const found = list.find(
-          (c) => 
-            String(c.id) === String(id) || 
-            String(c.communityId) === String(id) || 
+          (c) =>
+            String(c.id) === String(id) ||
+            String(c.communityId) === String(id) ||
             String(c.community_id) === String(id) ||
             String(c.slug) === String(id) ||
             c.id === Number(id) ||
@@ -63,9 +62,9 @@ const CommunityPage = () => {
           setCommunity(found);
           const foundIdStr = String(found.id || found.communityId || found.slug);
           const userHasJoined = myCommunitiesList.some(
-            (c) => 
-              String(c.id) === foundIdStr || 
-              String(c.communityId) === foundIdStr || 
+            (c) =>
+              String(c.id) === foundIdStr ||
+              String(c.communityId) === foundIdStr ||
               String(c.slug) === foundIdStr
           );
           setIsJoined(userHasJoined);
@@ -110,7 +109,6 @@ const CommunityPage = () => {
   const handleBack = () => {
     navigate('/dashboard');
   };
-
 
   useEffect(() => {
     const handleResize = () => {
@@ -226,7 +224,6 @@ const CommunityPage = () => {
         description={community?.description || 'SpaceHUB Community workspace'}
         noindex={true}
       />
-      {/* Top Navbar */}
 
       <div className="sticky top-0 z-20 bg-gray-200 border-b border-gray-300 h-14 flex items-center px-4 rounded-b-xl">
         <div className="flex items-center gap-2">
@@ -239,7 +236,7 @@ const CommunityPage = () => {
           <h1 className="text-lg font-semibold text-gray-800">Community</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => dispatch(setShowInbox(true))}
             title='Inbox'
             className="w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
@@ -248,14 +245,13 @@ const CommunityPage = () => {
         </div>
       </div>
 
-      {/* Main 3-column layout */}
       <div className="flex flex-1 gap-2 p-2 md:p-2 relative min-h-0 overflow-hidden" style={layoutStyle}>
-        {/* Narrow Left Sidebar + Left Panel Group */}
+
         <div className={`flex flex-shrink-0 border border-gray-500 rounded-xl h-full ${isMobileView && showCenterPanel ? 'hidden sm:flex' : 'flex sm:flex'} w-full sm:w-auto max-w-full sm:max-w-sm`}>
-          {/* Narrow Left Sidebar */}
+
           <div className="w-16 bg-white flex flex-col items-center py-4 space-y-4 rounded-l-xl h-full">
-            {/* Profile Picture */}
-            <button 
+
+            <button
               onClick={() => navigate('/dashboard/settings')}
               title='Profile Settings'
               className="w-10 h-10 rounded-md bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
@@ -273,18 +269,16 @@ const CommunityPage = () => {
               })()}
             </button>
 
-            {/* Plus Icon */}
             <button
               onClick={() => navigate('/dashboard')}
-              title='Create Community' 
+              title='Create Community'
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors">
               <img src="/avatars/plus.png" alt="Add" className="w-8 h-8" />
             </button>
 
             <div className="flex-1"></div>
 
-            {/* Settings Icon */}
-            <button 
+            <button
               title='Settings'
               onClick={() => navigate('/dashboard/settings')}
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors"
@@ -292,8 +286,7 @@ const CommunityPage = () => {
               <img src="/icons/setting.svg" alt="Settings" className="w-5 h-5" />
             </button>
 
-            {/* Logout Icon */}
-            <button 
+            <button
               title='Logout'
               onClick={handleLogout}
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-red-700 transition-colors"
@@ -304,45 +297,42 @@ const CommunityPage = () => {
             </button>
           </div>
 
-          {/* Community Left Panel */}
           <CommunityLeftPanel community={community} onBack={handleBack} />
         </div>
 
         <>
           {showCenterPanel && isMobileView && (
             <>
-              <div 
+              <div
                 className="fixed inset-0 bg-black/50 z-30 sm:hidden"
                 onClick={handleCloseCenterPanel}
               />
               <div className="fixed inset-0 z-40 sm:hidden flex flex-col">
-                <CommunityCenterPanel 
-                  community={community} 
+                <CommunityCenterPanel
+                  community={community}
                   onToggleRightPanel={() => setShowRightPanel(true)}
                   onBack={handleCloseCenterPanel}
                 />
               </div>
             </>
           )}
-          {/* Tablet & Desktop: Show center panel inline */}
+
           <div className="hidden sm:flex flex-1 min-w-0">
-            <CommunityCenterPanel 
-              community={community} 
+            <CommunityCenterPanel
+              community={community}
               onToggleRightPanel={() => setShowRightPanel(true)}
             />
           </div>
         </>
 
-        {/* Community Right Panel - Large screens */}
         <div className="hidden lg:flex w-full max-w-xs">
-          <CommunityRightPanel 
-            community={community} 
+          <CommunityRightPanel
+            community={community}
             onClose={showRightPanel ? () => setShowRightPanel(false) : null}
           />
         </div>
       </div>
 
-      {/* Right panel overlay for mobile & tablet */}
       {showRightPanel && (
         <div className="fixed inset-0 z-40 flex lg:hidden">
           <div
@@ -350,8 +340,8 @@ const CommunityPage = () => {
             onClick={() => setShowRightPanel(false)}
           />
           <div className="relative ml-auto w-[calc(100%-1rem)] sm:max-w-xs md:max-w-sm h-[calc(100%-1rem)] my-2 mr-2 bg-white rounded-xl shadow-2xl overflow-hidden">
-            <CommunityRightPanel 
-              community={community} 
+            <CommunityRightPanel
+              community={community}
               onClose={() => setShowRightPanel(false)}
             />
           </div>

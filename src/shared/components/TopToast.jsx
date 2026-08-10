@@ -4,7 +4,7 @@ import { TOAST_EVENT } from '../services/toast';
 const TopToast = () => {
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
-  const [type, setType] = useState('info'); // info | success | error
+  const [type, setType] = useState('info');
   const hideTimerRef = useRef(null);
 
   useEffect(() => {

@@ -37,7 +37,7 @@ const CreateChannelModal = ({ isOpen, onClose, onSuccess }) => {
     }
 
     const cleanName = channelName.trim().replace(/^#+/, '');
-    
+
     if (!cleanName) {
       setError('Channel name cannot be empty');
       return;
@@ -56,7 +56,6 @@ const CreateChannelModal = ({ isOpen, onClose, onSuccess }) => {
 
   if (!isOpen) return null;
 
-  {/* Create Channel Modal */}
   return (
     <div className="fixed inset-0 bg-[#282828]/50 flex items-start justify-center z-20 pt-20">
       <div ref={modalRef} className="bg-black rounded-md max-w-lg w-full mx-">

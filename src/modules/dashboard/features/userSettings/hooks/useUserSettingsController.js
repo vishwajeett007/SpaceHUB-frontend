@@ -66,7 +66,6 @@ export const useUserSettingsController = () => {
       setPreviewUrl(URL.createObjectURL(file));
     }
 
-    // Allow selecting the same file again after it has been removed.
     event.target.value = '';
   }, []);
 

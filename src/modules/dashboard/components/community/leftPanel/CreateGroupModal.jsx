@@ -83,7 +83,6 @@ const CreateGroupModal = ({ isOpen, onClose, communityName, communityId, onCreat
 
   if (!isOpen) return null;
 
-{/* Create Group Modal */}
   return (
     <div className="fixed inset-0 bg-[#282828]/50 flex items-center justify-center z-50">
       <div ref={modalRef} className="bg-[#282828] rounded-xl p-8 max-w-md w-full mx-4 relative">
@@ -98,7 +97,7 @@ const CreateGroupModal = ({ isOpen, onClose, communityName, communityId, onCreat
         </button>
         <h2 className="text-2xl font-bold text-white text-center mb-2">{communityName}</h2>
         <p className="text-white/80 text-center text-sm mb-6">Create a Group for seamless workflow!</p>
-        
+
         {error && (
           <p className="text-red-400 text-sm mb-4 text-center">{error}</p>
         )}

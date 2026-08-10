@@ -128,7 +128,6 @@ export const normalizeDirectMessage = (message = {}, context = {}) => {
     const contentType = message.contentType || message.content_type || '';
     const isImage = isImageFile({ contentType, fileName, fileKey, fileUrl });
 
-    // Always prioritize valid HTTP / Cloudinary URLs over raw fileKeys or filenames
     const validUrl = [fileUrl, fileKey, message.url, message.image].find(
       (u) => typeof u === 'string' && (u.startsWith('http') || u.startsWith('data:'))
     );

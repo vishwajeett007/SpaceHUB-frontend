@@ -10,7 +10,7 @@ export async function searchUsers(query, email, page = 0, size = 10) {
 
 export async function sendFriendRequest(userEmail, friendIdentifier) {
   void userEmail;
-  // Support both friendId (UUID) and friendEmail
+
   const isEmail = typeof friendIdentifier === 'string' && friendIdentifier.includes('@');
   const payload = isEmail ? { friendEmail: friendIdentifier } : { friendId: friendIdentifier };
 

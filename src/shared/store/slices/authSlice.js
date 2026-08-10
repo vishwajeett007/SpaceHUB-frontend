@@ -29,8 +29,7 @@ const authSlice = createSlice({
         const userData = readStoredUser();
 
         if (token && userData) {
-          // Restore a cookie-backed token into session storage so API requests
-          // and auth state continue to use the same source of truth.
+
           persistAuthSession(userData, token);
           state.user = userData;
           state.token = token;
@@ -82,7 +81,7 @@ const authSlice = createSlice({
       } catch (error) {
         console.error('Error clearing auth data:', error);
       }
-      // Local storage can be unavailable; logout must still clear in-memory access.
+
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;

@@ -4,7 +4,6 @@ import { getFriendsList, removeFriend } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
 import { getStoredUserEmail } from '../../../shared/services/authStorage';
 
-// Helper function to format name - prioritizes username
 const formatFriendName = (friend) => {
   if (friend.username) {
     return friend.username;
@@ -21,10 +20,9 @@ const formatFriendName = (friend) => {
   return 'Unknown';
 };
 
-// Friend Avatar Component with fallback
 const FriendAvatar = ({ avatar, username, firstName, isSelected }) => {
   const [imageError, setImageError] = useState(false);
-  
+
   useEffect(() => {
     setImageError(false);
   }, [avatar]);
@@ -36,7 +34,7 @@ const FriendAvatar = ({ avatar, username, firstName, isSelected }) => {
         ? String(username).charAt(0).toUpperCase()
         : 'U';
     return (
-      <span 
+      <span
         className={`text-xs font-semibold ${
           isSelected ? 'text-white' : 'text-gray-600'
         }`}
@@ -47,9 +45,9 @@ const FriendAvatar = ({ avatar, username, firstName, isSelected }) => {
   }
 
   return (
-    <img 
-      src={avatar} 
-      alt={username} 
+    <img
+      src={avatar}
+      alt={username}
       className="w-full h-full object-cover"
       onError={() => setImageError(true)}
     />
@@ -72,16 +70,16 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
   const fetchFriends = useCallback(async () => {
       setLoading(true);
       setError('');
-      
+
       const storedEmail = getStoredUserEmail();
       const userEmail = user?.email || storedEmail;
-      
+
       if (!userEmail) {
         setError('User email not found');
         setLoading(false);
         return;
       }
-      
+
       try {
         const cachedFriends = sessionStorage.getItem('friendsList');
         if (cachedFriends) {
@@ -97,11 +95,11 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
       } catch (e) {
         console.error('Error loading cached friends:', e);
       }
-      
+
       try {
         const response = await getFriendsList(userEmail);
         const friendsList = response?.data || [];
-        const processedFriends = Array.isArray(friendsList) 
+        const processedFriends = Array.isArray(friendsList)
           ? friendsList.map(friend => ({
               id: friend.id,
               firstName: friend.firstName || friend.first || '',
@@ -110,10 +108,7 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
               ...friend
             }))
           : [];
-        
-        // console.log('Processed friends list:', processedFriends);
-        
-        // Save to sessionStorage
+
         try {
           sessionStorage.setItem('friendsList', JSON.stringify(processedFriends));
           sessionStorage.setItem('friendsListUserEmail', userEmail);
@@ -121,7 +116,7 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
         } catch (storageError) {
           console.error('Error saving friends to sessionStorage:', storageError);
         }
-        
+
         setFriends(processedFriends);
         setFilteredFriends(processedFriends);
       } catch (e) {
@@ -208,7 +203,7 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
 
     try {
       await removeFriend({ userEmail, friendEmail });
-      
+
       setFriends((prev) => prev.filter((f) => {
         const fId = f.id || f.userId || f.friendId;
         return fId !== friendId;
@@ -303,10 +298,10 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
                 : 'text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <svg 
-              className={`w-5 h-5 ${selectedView === 'discover' ? 'text-white' : 'text-gray-700'}`} 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className={`w-5 h-5 ${selectedView === 'discover' ? 'text-white' : 'text-gray-700'}`}
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
@@ -315,17 +310,16 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
             <span className="font-medium">Discover</span>
           </button>
 
-          {/* Direct Message Section */}
           <div>
             <button
               onClick={() => setIsDirectMessageOpen(!isDirectMessageOpen)}
               className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             >
               <span className="font-medium">Direct message</span>
-              <svg 
+              <svg
                 className={`w-4 h-4 transition-transform ${isDirectMessageOpen ? 'rotate-180' : ''}`}
-                fill="none" 
-                stroke="currentColor" 
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -334,13 +328,13 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
 
             {isDirectMessageOpen && (
               <div className="mt-2 space-y-2">
-                {/* Search Bar */}
+
                 <div className="px-4">
                   <div className="relative">
-                    <svg 
+                    <svg
                       className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
-                      fill="none" 
-                      stroke="currentColor" 
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -356,10 +350,9 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
                   </div>
                 </div>
 
-                {/* Friends List */}
                 <div className="space-y-1">
                   {loading ? (
-                    // Shimmer loading effect
+
                     Array.from({ length: 5 }).map((_, idx) => (
                       <div key={idx} className="px-4 py-2 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gray-300 animate-pulse" />
@@ -379,11 +372,11 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
                       const friendId = friend.id || friend.userId || friend.friendId;
                       const friendDisplayName = formatFriendName(friend);
                       const friendAvatar = friend.avatar || friend.avatarUrl || friend.profileImage;
-                      const isSelected = selectedFriend?.id === friendId || 
+                      const isSelected = selectedFriend?.id === friendId ||
                                        selectedFriend?.userId === friendId ||
                                        selectedFriend?.friendId === friendId;
                       const isRemoving = removingFriend[friendId];
-                      
+
                       return (
                         <div
                           key={friendId || friendDisplayName}
@@ -398,7 +391,7 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
                             }`}
                           >
                             <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                              <FriendAvatar 
+                              <FriendAvatar
                                 avatar={friendAvatar}
                                 username={friendDisplayName}
                                 firstName={friend.firstName}
@@ -440,7 +433,6 @@ const DashboardLeftSidebar = ({ selectedView, setSelectedView, selectedFriend, s
         </div>
       </div>
 
-      {/* Remove Friend Confirmation Modal */}
       {showRemoveModal && friendToRemove && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-black rounded-lg md:rounded-xl p-5 md:p-8 max-w-md w-full relative">

@@ -34,7 +34,7 @@ const Dashboard = () => {
   const dispatch = useDispatch();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const profileFetchEmailRef = useRef(null);
-  
+
   const selectedView = useSelector(selectSelectedView);
   const showCreate = useSelector(selectShowCreate);
   const showRightSidebar = useSelector(selectShowRightSidebar);
@@ -60,12 +60,12 @@ const Dashboard = () => {
       if (!candidate) return false;
       const candidateUsername = (candidate.username || '').toLowerCase();
       const candidateEmail = (candidate.email || candidate.userEmail || '').toLowerCase();
-      
+
       const matches = candidateUsername === normalized || candidateEmail === normalized;
       if (!matches) {
         return false;
       }
-      
+
       dispatch(setSelectedFriend(candidate));
       try {
         sessionStorage.setItem('activeChatFriend', JSON.stringify(candidate));
@@ -115,9 +115,9 @@ const Dashboard = () => {
 
     if (!requesterEmail) {
       const isEmail = normalized.includes('@');
-      applyFriend({ 
-        email: isEmail ? friendIdentifier : undefined, 
-        username: isEmail ? friendIdentifier.split('@')[0] : friendIdentifier 
+      applyFriend({
+        email: isEmail ? friendIdentifier : undefined,
+        username: isEmail ? friendIdentifier.split('@')[0] : friendIdentifier
       });
       return;
     }
@@ -146,9 +146,9 @@ const Dashboard = () => {
     }
 
     const isEmail = normalized.includes('@');
-    applyFriend({ 
-      email: isEmail ? friendIdentifier : undefined, 
-      username: isEmail ? friendIdentifier.split('@')[0] : friendIdentifier 
+    applyFriend({
+      email: isEmail ? friendIdentifier : undefined,
+      username: isEmail ? friendIdentifier.split('@')[0] : friendIdentifier
     });
   }, [dispatch, selectedFriend, user]);
 
@@ -163,7 +163,6 @@ const Dashboard = () => {
       sessionStorage.removeItem('activeChatFriend');
     }
   }, [selectedFriend]);
-
 
   useEffect(() => {
     const profileSetupRequired = localStorage.getItem('profileSetupRequired') === 'true';
@@ -254,7 +253,6 @@ const Dashboard = () => {
     }
   }, [dispatch]);
 
- 
   useEffect(() => {
     const handleOpenInbox = () => {
       dispatch(setShowInbox(true));
@@ -266,7 +264,7 @@ const Dashboard = () => {
   }, [dispatch]);
 
   const handleLogout = () => {
-    // WebSocket disconnection is handled in AuthProvider
+
     logout();
     navigate('/');
   };
@@ -290,7 +288,6 @@ const Dashboard = () => {
     setIsMobileMenuOpen(false);
   };
 
-
     return (
       <div className="h-screen flex flex-col overflow-x-hidden bg-[#E6E6E6] md:bg-gray-100">
         <SEO
@@ -298,10 +295,9 @@ const Dashboard = () => {
           description="Manage your communities, direct messages, and team conversations inside SpaceHUB."
           noindex={true}
         />
-        {/* Top Navbar */}
 
         <div className="sticky top-0 z-20 bg-gray-200 border-b border-gray-300 h-14 flex items-center px-4 rounded-b-xl">
-          {/* Mobile Hamburger Menu Button */}
+
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             className="md:hidden p-2 -ml-2 mr-2"
@@ -322,7 +318,7 @@ const Dashboard = () => {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => dispatch(setShowInbox(true))}
               title='Inbox'
               className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
@@ -334,13 +330,12 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Main 3-column layout */}
         <div className="flex flex-1 gap-2 p-2 relative min-h-0 overflow-hidden">
         <div className="hidden md:flex border border-gray-500 rounded-xl h-full flex-shrink-0">
-          {/* Narrow Left Sidebar */}
+
           <div className="w-16 bg-white border-l-b-ts border-gray-400 flex flex-col items-center py-4 space-y-4 rounded-l-xl h-full">
-            {/* Profile Picture */}
-            <button 
+
+            <button
               onClick={() => navigate('/dashboard/settings')}
               title='Profile Settings'
               className="w-10 h-10 rounded-md bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
@@ -358,19 +353,16 @@ const Dashboard = () => {
               })()}
             </button>
 
-            {/* Plus Icon */}
             <button
             onClick={() => dispatch(setShowCreate(true))}
-            title='Create Community' 
+            title='Create Community'
             className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors">
               <img src="/avatars/plus.png" alt="Add" className="w-8 h-8" />
             </button>
 
-            {/* Spacer */}
             <div className="flex-1"></div>
 
-            {/* Settings Icon */}
-            <button 
+            <button
               title='Settings'
               onClick={() => navigate('/dashboard/settings')}
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors"
@@ -378,8 +370,7 @@ const Dashboard = () => {
               <img src="/icons/setting.svg" alt="Settings" className="w-5 h-5" />
             </button>
 
-            {/* Logout Icon */}
-            <button 
+            <button
               title='Logout'
               onClick={handleLogout}
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-red-700 transition-colors"
@@ -390,41 +381,38 @@ const Dashboard = () => {
             </button>
           </div>
 
-          {/* Left Sidebar Navigation */}
-          <DashboardLeftSidebar 
-            selectedView={selectedView} 
+          <DashboardLeftSidebar
+            selectedView={selectedView}
             setSelectedView={(view) => dispatch(setSelectedView(view))}
             selectedFriend={selectedFriend}
             setSelectedFriend={(friend) => dispatch(setSelectedFriend(friend))}
           />
         </div>
 
-        {/* Conditional Rendering: Discover or Main + Right Sidebar */}
         <div className="flex-1 flex gap-2 min-w-0">
         {selectedView === 'discover' ? (
             <Discover onOpenMenu={() => setIsMobileMenuOpen(true)} />
         ) : (
           <>
-              {/* Dashboard Main Section - Show on both mobile and desktop */}
+
               <div className="flex-1 min-w-0 h-full">
-            <DashboardMainSection 
-              selectedFriend={selectedFriend} 
+            <DashboardMainSection
+              selectedFriend={selectedFriend}
               onOpenAddFriends={() => dispatch(setShowRightSidebar(true))}
               showRightSidebar={showRightSidebar}
             />
               </div>
-            {/* Right Sidebar - Desktop: In layout, Mobile/Tablet: Slide-in from right */}
+
             {showRightSidebar && (
               <>
-                {/* Mobile/Tablet: Slide-in Panel from Right */}
+
                 <div className="lg:hidden">
-                  {/* Overlay */}
-                  <div 
+
+                  <div
                     className="fixed inset-0 bg-black/50 z-40"
                     onClick={() => dispatch(setShowRightSidebar(false))}
                   />
-                  
-                  {/* Slide-in Panel from Right with proper spacing */}
+
                   <div className="fixed right-0 top-0 bottom-0 z-50 flex items-center justify-end p-2">
                     <div className="w-[calc(100%-1rem)] sm:max-w-xs md:max-w-sm h-[calc(100%-1rem)] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
                       <DashboardRightSidebar onClose={() => dispatch(setShowRightSidebar(false))} />
@@ -432,7 +420,6 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Desktop: In normal layout (1024px and above) */}
                 <div className="hidden lg:flex w-full max-w-xs flex-shrink-0 h-full">
                   <DashboardRightSidebar onClose={() => dispatch(setShowRightSidebar(false))} />
                 </div>
@@ -443,8 +430,7 @@ const Dashboard = () => {
         </div>
         <CreatePopup open={showCreate} onClose={() => dispatch(setShowCreate(false))} />
         <InboxModal isOpen={showInbox} onClose={() => dispatch(setShowInbox(false))} />
-        
-        {/* Mobile Hamburger Menu */}
+
         <MobileHamburgerMenu
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}

@@ -15,7 +15,7 @@ const presetAvatarUrls = [
   '/avatars/avatar-8.png',
 ];
 
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 const AvatarPlaceholder = ({ src, size = 'lg' }) => {
   const sizeClasses = {
@@ -56,7 +56,7 @@ const ProfileSetupPage = () => {
   const [uploadPreview, setUploadPreview] = useState(defaultAvatarUrl);
   const [uploadFile, setUploadFile] = useState(null);
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(defaultAvatarUrl);
-  // interests removed per design
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dateOfBirthError, setDateOfBirthError] = useState('');
@@ -78,7 +78,7 @@ const ProfileSetupPage = () => {
     const url = URL.createObjectURL(file);
     setUploadPreview(url);
     setSelectedAvatarUrl('');
-    setError(''); // Clear any previous errors
+    setError('');
   };
 
   const handleRemoveUploadedImage = () => {
@@ -98,8 +98,6 @@ const ProfileSetupPage = () => {
     setUploadFile(null);
     setUploadPreview(url);
   };
-
-
 
   const containsEmoji = (value) => {
     if (!value) return false;
@@ -130,25 +128,24 @@ const ProfileSetupPage = () => {
       setDateOfBirthError('');
       return true;
     }
-    
+
     const selectedDate = new Date(dateValue);
     const today = new Date();
     const twoYearsAgo = new Date();
     const hundredYearsAgo = new Date();
     twoYearsAgo.setFullYear(today.getFullYear() - 2);
     hundredYearsAgo.setFullYear(today.getFullYear() - 100);
-    
-    // Reset time to compare only dates
+
     selectedDate.setHours(0, 0, 0, 0);
     twoYearsAgo.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     hundredYearsAgo.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate > today) {
       setDateOfBirthError('Date of birth cannot be in the future');
       return false;
     }
-    
+
     if (selectedDate > twoYearsAgo) {
       setDateOfBirthError('Date of birth must be at least 2 years ago');
       return false;
@@ -158,7 +155,7 @@ const ProfileSetupPage = () => {
       setDateOfBirthError('Invalid date');
       return false;
     }
-    
+
     setDateOfBirthError('');
     return true;
   };
@@ -208,12 +205,12 @@ const ProfileSetupPage = () => {
       setError(usernameError || 'Invalid username');
       return;
     }
-    
+
     if (dateOfBirth && !validateDateOfBirth(dateOfBirth)) {
       setError(dateOfBirthError || 'Please enter a valid date of birth');
       return;
     }
-    
+
     setError('');
     setSaving(true);
     try {

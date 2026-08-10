@@ -30,7 +30,6 @@ export const persistAuthSession = (userData, tokenValue, rememberMe = true) => {
     return false;
   }
 
-  // Always persist session to sessionStorage for active browser window
   try {
     sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
     sessionStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
@@ -39,7 +38,7 @@ export const persistAuthSession = (userData, tokenValue, rememberMe = true) => {
   }
 
   if (rememberMe) {
-    // Persist to localStorage for long-term login across browser restarts
+
     try {
       localStorage.setItem(ACCESS_TOKEN_KEY, token);
       localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
@@ -47,7 +46,6 @@ export const persistAuthSession = (userData, tokenValue, rememberMe = true) => {
       console.warn('Unable to write to localStorage:', e);
     }
 
-    // Maintain cookie for long-term session persistence (30 days)
     try {
       Cookies.set(TOKEN_COOKIE, token, {
         path: '/',
@@ -59,7 +57,7 @@ export const persistAuthSession = (userData, tokenValue, rememberMe = true) => {
       console.warn('Unable to set auth cookie:', e);
     }
   } else {
-    // If "Remember Me" is unchecked, clear persistent long-term storage
+
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(USER_DATA_KEY);
     removeTokenCookie();
@@ -90,7 +88,7 @@ export const clearStoredAuth = ({ includeResetState = false } = {}) => {
 };
 
 export const clearLegacyLocalAuth = () => {
-  // Retained for backward compatibility
+
 };
 
 export const readStoredUser = () => {

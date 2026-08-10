@@ -57,7 +57,7 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
     try {
       const res = await joinCommunity(communityIdentifier, userEmail);
       setSuccess(true);
-      
+
       const isAlready = res?.data?.alreadyMember || res?.alreadyMember;
       if (isAlready) {
         window.dispatchEvent(new CustomEvent('toast', {
@@ -70,7 +70,7 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
       }
 
       window.dispatchEvent(new Event('refresh:communities'));
-      
+
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -127,12 +127,12 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
-        {/* Community Image */}
+
         {communityImage && (
           <div className="w-full h-24 md:h-32 mb-3 md:mb-4 rounded-lg overflow-hidden bg-gray-700">
-            <img 
-              src={communityImage} 
-              alt={communityName} 
+            <img
+              src={communityImage}
+              alt={communityName}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
@@ -140,11 +140,11 @@ const JoinCommunityModal = ({ isOpen, onClose, community }) => {
         )}
 
         <h2 className="text-xl md:text-2xl font-bold text-white text-center mb-2">{communityName}</h2>
-        
+
         {communityDescription && (
           <p className="text-white/70 text-center text-sm mb-4 md:mb-6 line-clamp-3">{communityDescription}</p>
         )}
-        
+
         {error && (
           <p className="text-red-400 text-sm mb-4 text-center">{error}</p>
         )}

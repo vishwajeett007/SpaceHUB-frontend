@@ -30,7 +30,6 @@ const LocalGroupSettingsPage = () => {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState('');
 
-  // Listen for openInbox event
   useEffect(() => {
     const handleOpenInbox = () => {
       dispatch(setShowInbox(true));
@@ -50,8 +49,7 @@ const LocalGroupSettingsPage = () => {
         const res = await getLocalGroupSettings(id);
         const data = res?.data || res || {};
         setSettings(data);
-        
-        // Determine user role - for local groups, creator is ADMIN
+
         const userEmail = user?.email || getStoredUserEmail();
         if (userEmail) {
           try {
@@ -90,7 +88,7 @@ const LocalGroupSettingsPage = () => {
     };
 
     fetchJoinRequests();
-    // Refresh requests every 30 seconds
+
     const interval = setInterval(fetchJoinRequests, 30000);
     return () => clearInterval(interval);
   }, [id]);
@@ -101,9 +99,8 @@ const LocalGroupSettingsPage = () => {
       return;
     }
 
-    // Check authorization before generating invite link
-    const isAuthorized = currentUserRole === 'ADMIN' || 
-                        currentUserRole === 'OWNER' || 
+    const isAuthorized = currentUserRole === 'ADMIN' ||
+                        currentUserRole === 'OWNER' ||
                         currentUserRole === 'WORKSPACE_OWNER';
     if (!isAuthorized) {
       setInviteError('Only workspace owners and admins can generate invite links');
@@ -224,7 +221,7 @@ const LocalGroupSettingsPage = () => {
           <h1 className="text-lg font-semibold text-gray-800">Local-Group Settings</h1>
         </div>
         <div className="flex items-center">
-          <button 
+          <button
             onClick={() => dispatch(setShowInbox(true))}
             title='Inbox'
             className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
@@ -346,10 +343,8 @@ const LocalGroupSettingsPage = () => {
         </div>
       </div>
 
-      {/* Inbox Modal */}
       <InboxModal isOpen={showInbox} onClose={() => dispatch(setShowInbox(false))} />
 
-      {/* Invite Link Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div ref={inviteModalRef} className="bg-white rounded-lg md:rounded-xl p-5 md:p-8 max-w-md w-full relative">

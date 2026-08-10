@@ -28,7 +28,7 @@ const dispatchFriendsRefresh = () => {
   try {
     window.dispatchEvent(new Event('friends:refresh'));
   } catch {
-    // Refresh notification is best-effort.
+
   }
 };
 

@@ -48,12 +48,12 @@ const InboxModal = ({ isOpen, onClose }) => {
   const dispatch = useDispatch();
   const modalRef = useRef(null);
   const { user } = useAuth();
-  
+
   const requests = useSelector(selectRequests);
   const loading = useSelector(selectInboxLoading);
   const error = useSelector(selectInboxError);
   const processingRequest = useSelector(selectProcessingRequest);
-  const [activeAction, setActiveAction] = useState(null); // 'accept' | 'reject' | null
+  const [activeAction, setActiveAction] = useState(null);
   const requestsRef = useRef(requests);
   const [avatarUrls, setAvatarUrls] = useState({});
 
@@ -71,15 +71,15 @@ const InboxModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     const fetchAvatarUrls = async () => {
       const filesToFetch = new Set();
-      
+
       requests.forEach(item => {
         if (item.avatarFile && !avatarUrls[item.avatarFile]) {
           filesToFetch.add(item.avatarFile);
         }
       });
-      
+
       if (filesToFetch.size === 0) return;
-      
+
       const fetchPromises = Array.from(filesToFetch).map(async (filePath) => {
         try {
           const contentType = filePath.toLowerCase().endsWith('.png') ? 'image/png' :
@@ -87,7 +87,7 @@ const InboxModal = ({ isOpen, onClose }) => {
                              filePath.toLowerCase().endsWith('.gif') ? 'image/gif' :
                              filePath.toLowerCase().endsWith('.webp') ? 'image/webp' :
                              'image/png';
-          
+
           const url = await getPresignedDownloadUrl(filePath, contentType);
           if (url) {
             setAvatarUrls(prev => ({ ...prev, [filePath]: url }));
@@ -96,15 +96,14 @@ const InboxModal = ({ isOpen, onClose }) => {
           console.error(`Failed to get presigned URL for ${filePath}:`, error);
         }
       });
-      
+
       await Promise.all(fetchPromises);
     };
-    
+
     if (requests.length > 0) {
       fetchAvatarUrls();
     }
   }, [requests, avatarUrls]);
-
 
   const transformFriendRequest = useCallback((req, idx = 0) => {
     return normalizeFriendRequest(req, idx, avatarUrls);
@@ -113,7 +112,6 @@ const InboxModal = ({ isOpen, onClose }) => {
   const transformCommunityRequest = useCallback((req, communityId, communityName) => {
     return normalizeCommunityRequest(req, communityId, communityName, avatarUrls);
   }, [avatarUrls]);
-
 
   useEffect(() => {
     if (isOpen) {
@@ -131,7 +129,7 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     const handleWebSocketEvent = (eventType, data) => {
       console.log('InboxModal: WebSocket event received', eventType, data);
-      
+
       switch (eventType) {
         case 'connected':
           dispatch(setWsConnected(true));
@@ -171,8 +169,7 @@ const InboxModal = ({ isOpen, onClose }) => {
         }
         case 'community_request': {
           const notificationData = data.request || data;
-          // Only skip if explicitly marked as non-actionable
-          // COMMUNITY_JOINED with actionable=true means someone wants to join
+
           if (notificationData.actionable === false || (data.actionable === false && !notificationData.actionable)) {
             console.log('InboxModal: Skipping non-actionable community notification', notificationData);
             break;
@@ -310,7 +307,6 @@ const InboxModal = ({ isOpen, onClose }) => {
     fetchNotificationsHttp();
   }, [fetchNotificationsHttp]);
 
-  // Request notifications when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
@@ -346,7 +342,7 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     setActiveAction('accept');
     dispatch(setProcessingRequest(requestId));
-    
+
     const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
 
@@ -359,20 +355,20 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     try {
       if (request.type === 'friend') {
-        // Handle friend request accept
+
         await respondToFriendRequest({
           userEmail: userEmail,
           requesterEmail: request.requesterEmail,
           accept: true
         });
-        // Show toast notification
+
         window.dispatchEvent(new CustomEvent('toast', {
           detail: { message: 'Friend request accepted!', type: 'success' }
         }));
         try {
           window.dispatchEvent(new Event('friends:refresh'));
         } catch {
-          // Refresh notification is best-effort.
+
         }
       } else {
         await acceptJoinRequest({
@@ -381,7 +377,7 @@ const InboxModal = ({ isOpen, onClose }) => {
           userEmail: request.requesterEmail
         });
       }
-      
+
       if (request.referenceId) {
         try {
           await deleteNotificationByReference(request.referenceId);
@@ -389,7 +385,7 @@ const InboxModal = ({ isOpen, onClose }) => {
           console.warn('Failed to delete notification:', deleteErr);
         }
       }
-      
+
       dispatch(removeRequest(requestId));
     } catch (err) {
       console.error('Error accepting request:', err);
@@ -409,7 +405,7 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     setActiveAction('reject');
     dispatch(setProcessingRequest(requestId));
-    
+
     const storedEmail = getStoredUserEmail();
     const userEmail = user?.email || storedEmail;
 
@@ -422,18 +418,18 @@ const InboxModal = ({ isOpen, onClose }) => {
 
     try {
       if (request.type === 'friend') {
-        // Handle friend request reject
+
         await respondToFriendRequest({
           userEmail: userEmail,
           requesterEmail: request.requesterEmail,
           accept: false
         });
-        // Show toast notification
+
         window.dispatchEvent(new CustomEvent('toast', {
           detail: { message: 'Friend request rejected', type: 'info' }
         }));
       } else {
-        // Handle community join request reject (existing functionality)
+
         await rejectJoinRequest({
           communityName: request.name,
           creatorEmail: userEmail,
@@ -466,11 +462,11 @@ const InboxModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-[#282828]/50 flex items-start justify-center md:justify-end z-50 p-0 md:pt-10 md:pr-6 modal-backdrop">
-      <div 
+      <div
         ref={modalRef}
         className="bg-white rounded-none md:rounded-xl shadow-2xl w-full h-full md:w-[420px] md:max-h-[calc(100vh-80px)] md:h-auto flex flex-col overflow-hidden modal-content"
       >
-        {/* Header */}
+
         <div className="bg-white px-4 md:px-6 py-4 md:py-5 relative border-b border-gray-100">
           <button
             onClick={onClose}
@@ -490,10 +486,9 @@ const InboxModal = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        {/* Content Area for requests */}
         <div className="flex-1 overflow-y-auto min-h-0 md:min-h-[450px] bg-blue-100/90 px-3 md:px-4 py-3 md:py-4">
           {loading ? (
-            // Shimmer loading effect
+
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, idx) => (
                 <div key={idx} className="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm animate-pulse">
@@ -531,12 +526,12 @@ const InboxModal = ({ isOpen, onClose }) => {
 
                   return (
                     <div key={request.id} className="flex items-center gap-3 md:gap-4 bg-white rounded-lg p-3 md:p-4 shadow-sm">
-                      {/* Avatar */}
+
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                         {request.avatar ? (
-                          <img 
-                            src={request.avatar} 
-                            alt={request.requester} 
+                          <img
+                            src={request.avatar}
+                            alt={request.requester}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.style.display = 'none';
@@ -553,7 +548,6 @@ const InboxModal = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      {/* Request Info */}
                       <div className="flex-1 min-w-0">
                         <div className="text-xs md:text-sm font-semibold text-gray-800 leading-snug break-words">
                           {request.type === 'friend' ? (
@@ -580,7 +574,6 @@ const InboxModal = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
                       <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleReject(request.id)}

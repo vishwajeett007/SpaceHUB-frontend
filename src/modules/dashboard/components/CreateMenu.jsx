@@ -3,7 +3,7 @@ import React from 'react';
 const CreateMenu = ({ onBack, onFriends, onClubs, onJoin }) => {
   return (
   <div className="relative w-full max-w-full sm:max-w-[750px] rounded-2xl overflow-hidden min-h-[550px] sm:h-[680px] mx-auto">
-      {/* Top panel */}
+
       <div className="bg-white px-2 py-2 sm:p-4 rounded-t-2xl">
         <div className="bg-[#282828] text-white px-2 py-3 sm:p-5 mt-4 rounded-2xl">
           <div className="flex flex-col items-center mb-4 sm:mb-6 md:hidden">
@@ -35,7 +35,7 @@ const CreateMenu = ({ onBack, onFriends, onClubs, onJoin }) => {
           </div>
         </div>
       </div>
-      {/* Join a group or a community button */}
+
       <div className="bg-white rounded-b-2xl px-2 sm:p-5">
   <div className="rounded-2xl border-3 border-black px-2 py-3 sm:p-6 flex flex-col items-center text-center w-full">
           <p className="text-base sm:text-lg font-medium mb-2 sm:mb-3">Have an invite link?</p>
@@ -47,5 +47,4 @@ const CreateMenu = ({ onBack, onFriends, onClubs, onJoin }) => {
 };
 
 export default CreateMenu;
-
 

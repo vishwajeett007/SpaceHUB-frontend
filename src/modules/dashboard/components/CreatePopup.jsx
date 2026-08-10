@@ -15,8 +15,8 @@ const CreatePopup = ({ open, onClose }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useAuth?.() || {};
-  const [mode, setMode] = useState('menu'); 
-  const [kind, setKind] = useState('group'); 
+  const [mode, setMode] = useState('menu');
+  const [kind, setKind] = useState('group');
   const [doneSubtitle, setDoneSubtitle] = useState('');
   const [groupData, setGroupData] = useState({
     name: '',
@@ -32,17 +32,17 @@ const CreatePopup = ({ open, onClose }) => {
 
   const handleJoinSuccess = (responseData) => {
     const type = responseData?.type;
-    
+
     if (type === 'localGroup') {
       const groupId = responseData?.groupId || responseData?.id || responseData?.localGroupId;
-      
+
       if (groupId) {
         onClose();
-        // Add the new local group to Redux store if it's provided
+
         if (responseData) {
           dispatch(addLocalGroup(responseData));
         }
-        // Trigger refresh for backwards compatibility
+
         window.dispatchEvent(new Event('refresh:local-groups'));
         navigate(`/dashboard/local-group/${groupId}`);
       } else {
@@ -50,16 +50,16 @@ const CreatePopup = ({ open, onClose }) => {
         setMode('done');
       }
     } else {
-      // Handle community join
+
       const communityId = responseData?.id || responseData?.communityId || responseData?.communityId;
-      
+
       if (communityId) {
         onClose();
-        // Add the new community to Redux store if it's provided
+
         if (responseData) {
           dispatch(addCommunity(responseData));
         }
-        // Trigger refresh for backwards compatibility
+
         window.dispatchEvent(new Event('refresh:communities'));
         navigate(`/dashboard/community/${communityId}`);
       } else {
@@ -103,13 +103,12 @@ const CreatePopup = ({ open, onClose }) => {
           createdByEmail: trimmedEmail,
           imageFile: groupData.imageFile,
         });
-        // Add to Redux store and trigger refresh for backwards compatibility
+
         const communityData = response?.data || response;
         if (communityData) {
           dispatch(addCommunity(communityData));
         }
-        
-        // Create default Announcement group with general chatroom
+
         const communityId = communityData?.id || communityData?.communityId || response?.data?.id || response?.id;
         if (communityId) {
           try {
@@ -117,13 +116,13 @@ const CreatePopup = ({ open, onClose }) => {
             console.log('Default Announcement group and general chatroom created successfully');
           } catch (announcementError) {
             console.error('Failed to create default Announcement group:', announcementError);
-            // Don't block community creation if announcement group creation fails
+
             window.dispatchEvent(new CustomEvent('toast', {
               detail: { message: 'Community created, but failed to create default Announcement group', type: 'warning' }
             }));
           }
         }
-        
+
         window.dispatchEvent(new Event('refresh:communities'));
       } else {
         response = await createLocalGroup({
@@ -132,7 +131,7 @@ const CreatePopup = ({ open, onClose }) => {
           createdByEmail: trimmedEmail,
           imageFile: groupData.imageFile,
         });
-        // Add to Redux store and trigger refresh for backwards compatibility
+
         const localGroupData = response?.data || response;
         if (localGroupData) {
           dispatch(addLocalGroup(localGroupData));
@@ -140,9 +139,9 @@ const CreatePopup = ({ open, onClose }) => {
         window.dispatchEvent(new Event('refresh:local-groups'));
       }
 
-      const entityId = response?.data?.id || 
-                       response?.data?.communityId || 
-                       response?.data?.groupId || 
+      const entityId = response?.data?.id ||
+                       response?.data?.communityId ||
+                       response?.data?.groupId ||
                        response?.data?.localGroupId ||
                        response?.id ||
                        response?.communityId ||
@@ -151,7 +150,7 @@ const CreatePopup = ({ open, onClose }) => {
 
       if (entityId) {
         onClose();
-        
+
         if (kind === 'community') {
           navigate(`/dashboard/community/${entityId}`);
         } else {
@@ -173,10 +172,9 @@ const CreatePopup = ({ open, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 modal-backdrop">
-      {/* Backdrop */}
+
       <div className="absolute inset-0 bg-[#282828]/40 transition-opacity duration-300" onClick={onClose} />
 
-      {/* Modal Content */}
       {mode === 'menu' && (
         <CreateMenu
           onBack={onClose}

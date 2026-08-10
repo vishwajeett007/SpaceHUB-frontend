@@ -8,7 +8,7 @@ const getSocketServerUrl = () => {
       const url = new URL(BASE_URL);
       return url.origin;
     } catch {
-      // Fallback
+
     }
   }
   return typeof window !== 'undefined'
@@ -31,9 +31,9 @@ export const useVoiceRoom = (
   const [error, setError] = useState(null);
 
   const socketRef = useRef(null);
-  const peerConnectionsRef = useRef(new Map()); // socketId -> RTCPeerConnection
-  const pendingIceCandidatesRef = useRef(new Map()); // socketId -> Array of RTCIceCandidate
-  const remoteStreamsRef = useRef(new Map()); // socketId -> MediaStream
+  const peerConnectionsRef = useRef(new Map());
+  const pendingIceCandidatesRef = useRef(new Map());
+  const remoteStreamsRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const audioContainerRef = useRef(null);
 
@@ -51,7 +51,7 @@ export const useVoiceRoom = (
         const normalized = String(identifier).toLowerCase();
         if (usernames[normalized]) return usernames[normalized];
       } catch (e) {
-        // Ignore parse error
+
       }
     }
     if (typeof identifier === 'string' && identifier.includes('@')) {
@@ -60,7 +60,6 @@ export const useVoiceRoom = (
     return identifier;
   }, [communityId]);
 
-  // Audio container DOM setup for hidden background audio elements
   useEffect(() => {
     if (enabled && janusRoomId) {
       let container = document.getElementById('voice-room-audio-container');
@@ -107,7 +106,7 @@ export const useVoiceRoom = (
       try {
         pc.close();
       } catch (e) {
-        // Ignore
+
       }
     });
     peerConnectionsRef.current.clear();
@@ -209,13 +208,12 @@ export const useVoiceRoom = (
 
     log('Initializing media access (audio & video)...');
     try {
-      // Request media access
+
       localStreamRef.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: true,
       });
 
-      // Start muted and camera off initially when entering room
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = false;
@@ -433,13 +431,12 @@ export const useVoiceRoom = (
       );
     });
 
-    // Remote peer left
     socket.on('webrtc_user_left', ({ userId: peerUserId, socketId: peerSocketId }) => {
       log(`👋 Remote peer left: ${peerUserId} (${peerSocketId})`);
 
       setParticipants((prev) =>
         prev.filter((p) => {
-          if (p.isSelf) return true; // Always preserve self
+          if (p.isSelf) return true;
 
           const matchSocket = p.socketId && peerSocketId && p.socketId === peerSocketId;
           const matchUser =
@@ -458,7 +455,7 @@ export const useVoiceRoom = (
         try {
           pc.close();
         } catch (e) {
-          // Ignore
+
         }
         peerConnectionsRef.current.delete(peerSocketId);
       }
@@ -525,7 +522,6 @@ export const useVoiceRoom = (
 
     let videoTracks = localStreamRef.current.getVideoTracks();
 
-    // If no video track exists yet, attempt to acquire camera stream
     if (videoTracks.length === 0) {
       try {
         log('📹 Requesting camera video stream...');
@@ -533,7 +529,6 @@ export const useVoiceRoom = (
         const newVideoTrack = videoStream.getVideoTracks()[0];
         localStreamRef.current.addTrack(newVideoTrack);
 
-        // Add track to existing peer connections
         peerConnectionsRef.current.forEach((pc) => {
           pc.addTrack(newVideoTrack, localStreamRef.current);
         });

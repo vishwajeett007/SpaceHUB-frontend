@@ -17,7 +17,7 @@ export const normalizeFriendRequest = (request, index = 0, avatarUrls = {}) => {
     || request.name
     || (request.firstName ? [request.firstName, request.lastName].filter(Boolean).join(' ') : null)
     || (request.user ? ([request.user.firstName, request.user.lastName].filter(Boolean).join(' ') || request.user.username) : null);
-  
+
   const displayName = rawName || (email ? email.split('@')[0] : null) || 'Unknown User';
 
   const rawAvatar = request.senderProfileImageUrl || request.avatar || request.avatarUrl || request.profileImage || request.user?.avatarUrl;

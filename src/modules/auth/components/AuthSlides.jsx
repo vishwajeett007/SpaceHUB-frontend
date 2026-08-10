@@ -5,7 +5,7 @@ import login2 from '../../../assets/Auth.page/login2.svg';
 
 const AuthSlides = ({
   autoSlide = true,
-  slideInterval = 3000 
+  slideInterval = 3000
 }) => {
   const images = [login0, login1, login2];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -14,7 +14,7 @@ const AuthSlides = ({
     if (!autoSlide) return;
 
     const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) => 
+      setCurrentImageIndex((prevIndex) =>
         prevIndex === images.length - 1 ? 0 : prevIndex + 1
       );
     }, slideInterval);
@@ -44,7 +44,6 @@ const AuthSlides = ({
         ))}
       </div>
 
-    
       <div className="lg:hidden w-full h-[45vh] bg-[#FFFFFF] flex flex-col justify-center items-center px-0 py-2">
         <div className="w-full flex-1 flex items-center justify-center px-2 py-1">
           <div className="relative w-full h-full flex items-center justify-center">

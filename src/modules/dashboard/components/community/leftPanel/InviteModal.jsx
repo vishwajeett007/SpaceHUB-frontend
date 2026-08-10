@@ -14,10 +14,9 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
   const { user } = useAuth();
   const modalRef = useRef(null);
 
-  // Allow invitation generation for all community members/owners or when role is unspecified
-  const isAuthorized = !currentUserRole || 
-                      currentUserRole.toUpperCase() === 'ADMIN' || 
-                      currentUserRole.toUpperCase() === 'OWNER' || 
+  const isAuthorized = !currentUserRole ||
+                      currentUserRole.toUpperCase() === 'ADMIN' ||
+                      currentUserRole.toUpperCase() === 'OWNER' ||
                       currentUserRole.toUpperCase() === 'WORKSPACE_OWNER' ||
                       currentUserRole.toUpperCase() === 'MEMBER';
 
@@ -27,7 +26,6 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
       return;
     }
 
-    // Check authorization before generating invite link
     if (!isAuthorized) {
       setError('Only workspace owners and admins can generate invite links');
       window.dispatchEvent(new CustomEvent('toast', {
@@ -42,7 +40,7 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
     try {
       let response;
       if (isLocalGroup) {
-        // Use local group invite API
+
         response = await createLocalGroupInvite({
           groupId: communityId,
           inviterEmail: user.email,
@@ -50,7 +48,7 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
           expiresInHours: 24
         });
       } else {
-        // Use community invite API
+
         response = await createCommunityInvite({
           communityId,
           email: user.email,
@@ -61,9 +59,9 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
       const resData = response?.data || response;
       const code = resData?.inviteCode || resData?.code || response?.inviteCode || response?.code;
       const directLink = resData?.inviteLink || resData?.link || response?.inviteLink || response?.link;
-      
+
       const link = directLink || (code ? `${window.location.origin}/${isLocalGroup ? 'localgroup/invite' : 'invite'}/${communityId}/${code}` : '');
-      
+
       if (link) {
         setInviteLink(link);
       } else {
@@ -144,7 +142,7 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
         <p className="text-white/80 text-center text-sm mb-6">
           Your community starts with you. Invite people and make it come alive.
         </p>
-        
+
         {error && (
           <p className="text-red-400 text-sm mb-4 text-center">{error}</p>
         )}

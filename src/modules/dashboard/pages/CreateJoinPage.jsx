@@ -21,8 +21,8 @@ const CreateJoinPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const showInbox = useSelector(selectShowInbox);
   const unreadCount = useSelector(selectUnreadCount);
-  const [mode, setMode] = useState('menu'); // 'menu', 'create', 'desc', 'done', 'join'
-  const [kind, setKind] = useState('group'); // 'group' or 'community'
+  const [mode, setMode] = useState('menu');
+  const [kind, setKind] = useState('group');
   const [doneSubtitle, setDoneSubtitle] = useState('');
   const [groupData, setGroupData] = useState({
     name: '',
@@ -34,7 +34,6 @@ const CreateJoinPage = () => {
   const storedEmail = getStoredUserEmail();
   const userEmail = (user && user.email) || storedEmail || '';
 
-  // Listen for openInbox event
   useEffect(() => {
     const handleOpenInbox = () => {
       dispatch(setShowInbox(true));
@@ -47,16 +46,16 @@ const CreateJoinPage = () => {
 
   const handleJoinSuccess = (responseData) => {
     const type = responseData?.type;
-    
+
     if (type === 'localGroup') {
       const groupId = responseData?.groupId || responseData?.id || responseData?.localGroupId;
-      
+
       if (groupId) {
-        // Add the new local group to Redux store if it's provided
+
         if (responseData) {
           dispatch(addLocalGroup(responseData));
         }
-        // Trigger refresh for backwards compatibility
+
         window.dispatchEvent(new Event('refresh:local-groups'));
         navigate(`/dashboard/local-group/${groupId}`);
       } else {
@@ -64,15 +63,15 @@ const CreateJoinPage = () => {
         setMode('done');
       }
     } else {
-      // Handle community join
+
       const communityId = responseData?.id || responseData?.communityId || responseData?.communityId;
-      
+
       if (communityId) {
-        // Add the new community to Redux store if it's provided
+
         if (responseData) {
           dispatch(addCommunity(responseData));
         }
-        // Trigger refresh for backwards compatibility
+
         window.dispatchEvent(new Event('refresh:communities'));
         navigate(`/dashboard/community/${communityId}`);
       } else {
@@ -120,8 +119,7 @@ const CreateJoinPage = () => {
         if (communityData) {
           dispatch(addCommunity(communityData));
         }
-        
-        // Create default Announcement group with general chatroom
+
         const communityId = communityData?.id || communityData?.communityId || response?.data?.id || response?.id;
         if (communityId) {
           try {
@@ -129,13 +127,13 @@ const CreateJoinPage = () => {
             console.log('Default Announcement group and general chatroom created successfully');
           } catch (announcementError) {
             console.error('Failed to create default Announcement group:', announcementError);
-            // Don't block community creation if announcement group creation fails
+
             window.dispatchEvent(new CustomEvent('toast', {
               detail: { message: 'Community created, but failed to create default Announcement group', type: 'warning' }
             }));
           }
         }
-        
+
         window.dispatchEvent(new Event('refresh:communities'));
       } else {
         response = await createLocalGroup({
@@ -144,7 +142,7 @@ const CreateJoinPage = () => {
           createdByEmail: trimmedEmail,
           imageFile: groupData.imageFile,
         });
-       
+
         const localGroupData = response?.data || response;
         if (localGroupData) {
           dispatch(addLocalGroup(localGroupData));
@@ -152,9 +150,9 @@ const CreateJoinPage = () => {
         window.dispatchEvent(new Event('refresh:local-groups'));
       }
 
-      const entityId = response?.data?.id || 
-                       response?.data?.communityId || 
-                       response?.data?.groupId || 
+      const entityId = response?.data?.id ||
+                       response?.data?.communityId ||
+                       response?.data?.groupId ||
                        response?.data?.localGroupId ||
                        response?.id ||
                        response?.communityId ||
@@ -181,10 +179,8 @@ const CreateJoinPage = () => {
     }
   };
 
-  // Redirect to dashboard on desktop screens (only on initial mount)
   useEffect(() => {
-    // Only redirect on initial mount if screen is desktop size
-    // Don't redirect on resize to avoid interrupting users
+
     if (window.innerWidth >= 768) {
       navigate('/dashboard');
     }
@@ -192,7 +188,7 @@ const CreateJoinPage = () => {
 
   return (
     <div className="min-h-screen bg-[#E6E6E6]">
-      {/* Mobile Header */}
+
       <div className="sticky top-0 z-20 bg-white border-b border-gray-200 h-14 flex items-center px-4">
         <button
           onClick={() => {
@@ -217,7 +213,7 @@ const CreateJoinPage = () => {
         <div className="flex-1 text-center">
           <h1 className="text-lg font-semibold text-gray-800">Create/join</h1>
         </div>
-        <button 
+        <button
           onClick={() => dispatch(setShowInbox(true))}
           className="relative p-2 -mr-2 text-gray-700 hover:text-gray-900"
           title="Inbox"
@@ -229,11 +225,10 @@ const CreateJoinPage = () => {
         </button>
       </div>
 
-      {/* Content */}
       <div className={`${mode === 'menu' ? 'px-4 py-6' : 'px-0 py-0'}`}>
         {mode === 'menu' && (
           <div className="flex flex-col items-center">
-            {/* Plus Icon and Title */}
+
             <div className="flex flex-col items-center mb-8">
               <div className="w-16 h-16 rounded-full bg-[#1E2635] flex items-center justify-center mb-4">
                 <div className="relative w-6 h-6" aria-hidden="true">
@@ -244,7 +239,6 @@ const CreateJoinPage = () => {
               <h1 className="text-2xl font-bold text-gray-900">Create/join</h1>
             </div>
 
-            {/* Two Buttons */}
             <div className="w-full space-y-4 mb-8">
               <button
                 onClick={() => { setKind('group'); setMode('create'); setDoneSubtitle(''); }}
@@ -267,7 +261,6 @@ const CreateJoinPage = () => {
               </button>
             </div>
 
-            {/* Join Section */}
             <div className="w-full">
               <p className="text-center text-gray-900 font-medium mb-3">Have an invite link?</p>
               <button
@@ -334,7 +327,6 @@ const CreateJoinPage = () => {
         )}
       </div>
 
-      {/* Mobile Hamburger Menu */}
       <MobileHamburgerMenu
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
@@ -343,14 +335,13 @@ const CreateJoinPage = () => {
             navigate('/dashboard/direct-message');
           } else if (view === 'discover') {
             navigate('/dashboard');
-            // Dispatch will be handled by Dashboard component
+
           } else if (view === 'dashboard') {
             navigate('/dashboard');
           }
         }}
       />
 
-      {/* Inbox Modal */}
       <InboxModal isOpen={showInbox} onClose={() => dispatch(setShowInbox(false))} />
     </div>
   );

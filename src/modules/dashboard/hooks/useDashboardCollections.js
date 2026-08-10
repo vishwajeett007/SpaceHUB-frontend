@@ -25,7 +25,7 @@ export const useDashboardCollections = (userEmail) => {
   const cacheRestoredRef = useRef({ communities: false, localGroups: false });
 
   const fetchCommunities = useCallback(async () => {
-    // Restore from cache only once on first render (before API call)
+
     if (!cacheRestoredRef.current.communities) {
       cacheRestoredRef.current.communities = true;
       try {

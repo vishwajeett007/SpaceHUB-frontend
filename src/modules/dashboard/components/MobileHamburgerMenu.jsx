@@ -33,15 +33,14 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
 
   return (
     <>
-      {/* Overlay */}
-      <div 
+
+      <div
         className="fixed inset-0 bg-black/50 z-40 md:hidden"
         onClick={onClose}
       />
-      
-      {/* Menu Drawer */}
+
       <div className="fixed left-0 top-0 bottom-0 w-[70%] max-w-sm bg-white z-50 md:hidden flex flex-col shadow-2xl">
-        {/* Header with Logo and App Name */}
+
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <button onClick={() => { navigate('/'); onClose(); }} className="cursor-pointer hover:opacity-80 transition-opacity">
@@ -51,12 +50,11 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
           </div>
         </div>
 
-        {/* User Profile Section */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-              <img 
-                src={avatarUrl} 
+              <img
+                src={avatarUrl}
                 alt={username}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -71,7 +69,6 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
           </div>
         </div>
 
-        {/* Navigation Links */}
         <div className="flex-1 overflow-y-auto py-2">
           <div className="space-y-1 px-2">
             <button
@@ -103,10 +100,10 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
               onClick={() => handleNavigation('discover')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-md text-gray-700 hover:bg-black hover:text-white transition-colors"
             >
-              <svg 
-                className="w-5 h-5" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
@@ -125,7 +122,6 @@ const MobileHamburgerMenu = ({ isOpen, onClose, onNavigate }) => {
           </div>
         </div>
 
-        {/* Settings and Logout */}
         <div className="border-t border-gray-200 py-2 px-2">
           <button
             onClick={() => {

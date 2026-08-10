@@ -222,7 +222,7 @@ export const useCommunityChat = ({
         try {
           await joinRoom(roomCode, userEmail);
         } catch {
-          // The socket can still connect when room membership already exists.
+
         }
       }
 

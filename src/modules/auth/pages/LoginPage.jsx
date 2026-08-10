@@ -35,11 +35,11 @@ const LoginPage = () => {
     try {
       const rememberedEmail = localStorage.getItem('rememberedEmail');
       const savedRememberMe = localStorage.getItem('rememberMe');
-      
+
       if (savedRememberMe !== null) {
         setRememberMe(savedRememberMe === 'true');
       }
-      
+
       const autoFillEmail = location.state?.autoFillEmail || sessionStorage.getItem('lastIdentifier') || rememberedEmail;
       if (autoFillEmail) {
         setIdentifier(autoFillEmail);

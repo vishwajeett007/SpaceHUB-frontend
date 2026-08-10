@@ -27,14 +27,12 @@ const DirectMessagePage = () => {
 
   const userEmail = user?.email || getStoredUserEmail();
 
-  // Auto-focus search input when component mounts
   useEffect(() => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, []);
 
-  // Listen for openInbox event
   useEffect(() => {
     const handleOpenInbox = () => {
       dispatch(setShowInbox(true));
@@ -94,18 +92,18 @@ const DirectMessagePage = () => {
         try {
           const chatHistory = await getChatHistory(userEmail, friend.email);
           const messages = chatHistory?.data || chatHistory?.messages || chatHistory?.history || [];
-          const sortedMessages = Array.isArray(messages) 
+          const sortedMessages = Array.isArray(messages)
             ? messages.sort((a, b) => {
                 const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
                 const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
                 return timeA - timeB;
               })
             : [];
-          
-          const lastMessage = sortedMessages.length > 0 
-            ? sortedMessages[sortedMessages.length - 1] 
+
+          const lastMessage = sortedMessages.length > 0
+            ? sortedMessages[sortedMessages.length - 1]
             : null;
-          
+
           let lastMsgText = '';
           if (lastMessage) {
             const isFileMsg = lastMessage.type === 'FILE' || lastMessage.isFile || Boolean(lastMessage.fileKey || lastMessage.fileUrl);
@@ -116,12 +114,12 @@ const DirectMessagePage = () => {
               lastMsgText = lastMessage.content || lastMessage.message || lastMessage.text || '';
             }
           }
-          
+
           const unreadCount = sortedMessages.filter(msg => {
             const msgSender = msg.senderEmail || msg.email || '';
             return msgSender.toLowerCase() !== userEmail.toLowerCase();
           }).length;
-          
+
           return {
             ...friend,
             lastMessage: lastMsgText,
@@ -140,7 +138,7 @@ const DirectMessagePage = () => {
       });
 
       const conversations = await Promise.all(conversationsPromises);
-      // Sort by last message time (most recent first)
+
       const sorted = conversations
         .filter(conv => conv.lastMessage || conv.lastMessageTime)
         .sort((a, b) => {
@@ -148,7 +146,7 @@ const DirectMessagePage = () => {
           if (!b.lastMessageTime) return -1;
           return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
         });
-      
+
       setRecentConversations(sorted);
     } catch (error) {
       console.error('Error fetching friends:', error);
@@ -205,7 +203,7 @@ const DirectMessagePage = () => {
       const now = new Date();
       const diffMs = now - date;
       const diffMins = Math.floor(diffMs / 60000);
-    
+
       if (diffMins < 1440) {
         const hours = date.getHours();
         const minutes = date.getMinutes();
@@ -214,7 +212,7 @@ const DirectMessagePage = () => {
         const displayMinutes = minutes.toString().padStart(2, '0');
         return `${displayHours}:${displayMinutes}${ampm}`;
       }
-      
+
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     } catch {
       return '';
@@ -223,7 +221,7 @@ const DirectMessagePage = () => {
 
   return (
     <div className="h-screen md:hidden bg-[#E6E6E6] flex flex-col overflow-hidden">
-      {/* Header */}
+
       <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <button
@@ -234,13 +232,13 @@ const DirectMessagePage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          
+
           <div className="flex items-center gap-2 flex-1 ml-3">
             <h1 className="text-xl font-semibold text-gray-800">Direct message</h1>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Add Friend Button */}
+
             <button
               onClick={() => setIsAddFriendOpen(true)}
               className="p-2 text-black -ml-4"
@@ -249,8 +247,7 @@ const DirectMessagePage = () => {
               <img src="/icons/add_frnd.svg" alt="Add Friend" className="w-5 h-5" />
             </button>
 
-            {/* Inbox Button */}
-            <button 
+            <button
               onClick={() => dispatch(setShowInbox(true))}
               className="relative p-2"
               title="Inbox"
@@ -264,7 +261,6 @@ const DirectMessagePage = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
       <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200">
         <div className="relative">
           <img
@@ -283,10 +279,9 @@ const DirectMessagePage = () => {
         </div>
       </div>
 
-      {/* All Friends List */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <h2 className="text-sm font-medium text-gray-700 mb-3">All Friends</h2>
-        
+
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, idx) => (
@@ -303,15 +298,15 @@ const DirectMessagePage = () => {
           <div className="space-y-2">
             {filteredFriends.map((friend) => {
               const displayName = formatFriendName(friend);
-              // Find if this friend has a recent conversation
-              const conversation = recentConversations.find(conv => 
+
+              const conversation = recentConversations.find(conv =>
                 conv.email === friend.email || conv.id === friend.id
               );
               const lastMessage = conversation?.lastMessage || '';
-              const truncatedMessage = lastMessage.length > 40 
-                ? lastMessage.substring(0, 40) + '...' 
+              const truncatedMessage = lastMessage.length > 40
+                ? lastMessage.substring(0, 40) + '...'
                 : lastMessage;
-              
+
               return (
                 <button
                   key={friend.id || friend.email}
@@ -328,7 +323,7 @@ const DirectMessagePage = () => {
                       }}
                     />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0 text-left">
                     <div className="font-semibold text-gray-800 truncate">{displayName}</div>
                     {truncatedMessage ? (
@@ -337,7 +332,7 @@ const DirectMessagePage = () => {
                       <div className="text-sm text-gray-400 italic">click to start</div>
                     )}
                   </div>
-                  
+
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     {conversation?.lastMessageTime && (
                       <span className="text-xs text-gray-400 whitespace-nowrap">
@@ -364,13 +359,12 @@ const DirectMessagePage = () => {
         )}
       </div>
 
-      {/* Hamburger Menu */}
       <MobileHamburgerMenu
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={(view) => {
           if (view === 'direct-message') {
-            // Already on direct message page
+
             setIsMenuOpen(false);
           } else {
             navigate(`/dashboard${view === 'dashboard' ? '' : `/${view}`}`);
@@ -378,23 +372,20 @@ const DirectMessagePage = () => {
         }}
       />
 
-      {/* Add Friend Panel */}
       {isAddFriendOpen && (
         <>
-          {/* Overlay */}
-          <div 
+
+          <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsAddFriendOpen(false)}
           />
-          
-          {/* Slide-in Panel from Right */}
+
           <div className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white z-50 md:hidden flex flex-col shadow-2xl">
             <DashboardRightSidebar onClose={() => setIsAddFriendOpen(false)} />
           </div>
         </>
       )}
 
-      {/* Inbox Modal */}
       <InboxModal isOpen={showInbox} onClose={() => dispatch(setShowInbox(false))} />
     </div>
   );

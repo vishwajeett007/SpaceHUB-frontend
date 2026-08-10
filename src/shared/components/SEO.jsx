@@ -1,9 +1,5 @@
 import { useEffect } from 'react';
 
-/**
- * SEO component to dynamically manage document head, title, meta tags,
- * Open Graph, Twitter Cards, Canonical links, and JSON-LD structured data.
- */
 export const SEO = ({
   title,
   description = 'Spacehub - A unified workspace for teams to chat, share, and build together.',
@@ -20,10 +16,8 @@ export const SEO = ({
     const fullTitle = title ? `${title} | Spacehub` : 'Spacehub - Unified Team Workspace & Collaboration Platform';
     const fullImgUrl = image.startsWith('http') ? image : `${typeof window !== 'undefined' ? window.location.origin : siteUrl}${image}`;
 
-    // 1. Update document title
     document.title = fullTitle;
 
-    // Helper to create or update meta tags
     const setMetaTag = (selector, attrName, attrValue, content) => {
       if (!content) return;
       let element = document.querySelector(selector);
@@ -35,7 +29,6 @@ export const SEO = ({
       element.setAttribute('content', content);
     };
 
-    // Helper to create or update link tags
     const setLinkTag = (rel, href) => {
       if (!href) return;
       let element = document.querySelector(`link[rel="${rel}"]`);
@@ -47,13 +40,11 @@ export const SEO = ({
       element.setAttribute('href', href);
     };
 
-    // 2. Standard Meta Tags
     setMetaTag('meta[name="description"]', 'name', 'description', description);
     setMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords);
     setMetaTag('meta[name="robots"]', 'name', 'robots', noindex ? 'noindex, nofollow' : 'index, follow');
     setMetaTag('meta[name="author"]', 'name', 'author', 'Spacehub Team');
 
-    // 3. Open Graph Tags
     setMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', 'Spacehub');
     setMetaTag('meta[property="og:title"]', 'property', 'og:title', fullTitle);
     setMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
@@ -63,7 +54,6 @@ export const SEO = ({
       setMetaTag('meta[property="og:image"]', 'property', 'og:image', fullImgUrl);
     }
 
-    // 4. Twitter Card Tags
     setMetaTag('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary_large_image');
     setMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', fullTitle);
     setMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
@@ -71,11 +61,8 @@ export const SEO = ({
       setMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', fullImgUrl);
     }
 
-
-    // 5. Canonical Link
     setLinkTag('canonical', currentUrl);
 
-    // 6. JSON-LD Structured Data
     let scriptElement = document.getElementById('json-ld-schema');
     if (jsonLd) {
       if (!scriptElement) {

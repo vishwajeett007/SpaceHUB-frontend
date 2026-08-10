@@ -9,7 +9,6 @@ import { showToast } from '../../../shared/services/toast';
 import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
 
-
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState('');
@@ -27,10 +26,9 @@ const ForgotPasswordPage = () => {
   const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !hasEmoji(value);
   const isMobile = () => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth < 1024; 
+    return window.innerWidth < 1024;
   };
 
- 
   useEffect(() => {
     if (resendTimer > 0) {
       timerIntervalRef.current = setInterval(() => {
@@ -81,7 +79,7 @@ const ForgotPasswordPage = () => {
           setIdentifier(identifierToSend);
           setForgotToken(token);
           showToast('OTP sent!', 'success');
-          setResendTimer(30); 
+          setResendTimer(30);
           setStep('otp');
         })
         .catch((err) => {
@@ -131,7 +129,7 @@ const ForgotPasswordPage = () => {
     resendForgotOtp(forgotToken)
       .then(() => {
         showToast('OTP resent successfully!', 'success');
-        setResendTimer(30); 
+        setResendTimer(30);
       })
       .catch((err) => {
         console.error('Failed to resend OTP:', err.message);
@@ -147,13 +145,13 @@ const ForgotPasswordPage = () => {
     setOtp('');
     setInvalidOtp(false);
     setOtpError(false);
-    setResendTimer(0); 
+    setResendTimer(0);
   };
 
   const handleEmailChange = (e) => {
     const value = e.target.value;
     setIdentifier(value);
-    
+
     setIdentifierError(false);
   };
 
@@ -259,19 +257,19 @@ const ForgotPasswordPage = () => {
                   )}
                 </div>
                 <div className="text-right mt-2">
-                  <a 
-                    href="#" 
-                    onClick={handleResendOtp} 
+                  <a
+                    href="#"
+                    onClick={handleResendOtp}
                     className={`text-default underline font-medium ${
-                      loading || resendTimer > 0 
-                        ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-500' 
+                      loading || resendTimer > 0
+                        ? 'opacity-50 cursor-not-allowed pointer-events-none text-gray-500'
                         : 'hover:text-blue-700'
                     }`}
                   >
-                    {loading 
-                      ? 'Sending...' 
-                      : resendTimer > 0 
-                        ? `Resend otp (${resendTimer}s)` 
+                    {loading
+                      ? 'Sending...'
+                      : resendTimer > 0
+                        ? `Resend otp (${resendTimer}s)`
                         : 'Resend otp'
                     }
                   </a>
@@ -305,7 +303,5 @@ const ForgotPasswordPage = () => {
     </>
   );
 };
-
-
 
 export default ForgotPasswordPage;

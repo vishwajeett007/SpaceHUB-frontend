@@ -1,4 +1,4 @@
-// Shared module exports
+
 export { AuthProvider } from './contexts/AuthContext';
 export { useAuth } from './contexts/AuthContextContext';
 export { default as ProtectedRoute } from './components/ProtectedRoute';

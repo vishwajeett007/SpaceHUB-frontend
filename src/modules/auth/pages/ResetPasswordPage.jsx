@@ -10,7 +10,6 @@ import { showToast } from '../../../shared/services/toast';
 import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
 
-
 const ResetPasswordPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -76,7 +75,7 @@ const ResetPasswordPage = () => {
         })
         .finally(() => setLoading(false));
     }
-  }; 
+  };
 
   return (
     <>

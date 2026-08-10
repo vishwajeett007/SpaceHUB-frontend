@@ -5,7 +5,6 @@ import { showToast } from '../../../shared/services/toast';
 import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
 
-
 const SignupPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -138,7 +137,6 @@ const SignupPage = () => {
 
         const nextPassword = name === 'password' ? value : updated.password;
         const nextConfirm = name === 'confirmPassword' ? value : updated.confirmPassword;
-
 
         if (nextPassword && nextConfirm) {
           const doNotMatch = nextPassword !== nextConfirm;
@@ -283,7 +281,6 @@ const SignupPage = () => {
         console.error('Failed to initiate registration/OTP:', err.message);
         const errorMessage = err.message || 'Failed to send OTP. Please try again.';
 
-        // Handle existing email scenario by redirecting user to Login page with auto-filled email
         if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('already exists') || err.status === 409) {
           sessionStorage.setItem('lastIdentifier', email);
           showToast('Email is already registered. Redirecting to login...', 'info');
@@ -393,7 +390,7 @@ const SignupPage = () => {
             letter-spacing: 0.2em;
             font-family: 'Arial', sans-serif;
           }
-          
+
           .password-input[type="password"]:not([data-show="true"]):placeholder-shown {
             -webkit-text-security: none;
             text-security: none;
@@ -622,7 +619,6 @@ const SignupPage = () => {
                   )}
                 </div>
 
-
                 <div>
                   <label htmlFor="confirmPassword" className="block text-base lg:text-[1.25rem] font-medium text-default mb-1 lg:mb-2 text-left">
                     Confirm Password <span className="text-red-500">*</span>
@@ -686,7 +682,6 @@ const SignupPage = () => {
                     </>
                   )}
                 </div>
-
 
                 <button
                   type="submit"

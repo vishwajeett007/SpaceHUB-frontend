@@ -30,7 +30,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
           setLoadingChatrooms(false);
         }
       };
-      
+
       fetchChatrooms();
     } else if (!open) {
       setFetchedChatrooms([]);
@@ -53,7 +53,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
           setLoadingVoiceRooms(false);
         }
       };
-      
+
       fetchVoiceRooms();
     } else if (!open) {
       setFetchedVoiceRooms([]);
@@ -66,7 +66,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
     const handleVoiceRoomCreated = (event) => {
       const { roomId: eventRoomId } = event.detail || {};
       if (eventRoomId === roomId || eventRoomId === String(roomId)) {
-        // Refetch voice rooms when a new one is created
+
         const fetchVoiceRooms = async () => {
           try {
             const response = await getVoiceRoomsList(roomId);
@@ -87,7 +87,6 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
     };
   }, [open, roomId]);
 
-  // Listen for chatroom creation events to refetch
   useEffect(() => {
     if (!open || !roomCode) return;
 
@@ -107,9 +106,9 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
       window.removeEventListener('chatroom:created', handleChatroomCreated);
     };
   }, [open, roomCode]);
-  
+
   const isAnnouncement = (groupName || '').toLowerCase() === 'announcement';
-  
+
   const allChatRooms = useMemo(() => {
     const chatRoomList = chatRooms || [];
     const filteredChatRooms = chatRoomList.filter(ch => ch.toLowerCase() !== 'general');
@@ -122,7 +121,6 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
     return merged;
   }, [chatRooms, fetchedChatrooms]);
 
-  // Handle chatroom deletion
   const handleDeleteChatroom = useCallback((chatroomName) => {
     setFetchedChatrooms((prev) => prev.filter(name => name !== chatroomName));
   }, []);
@@ -139,7 +137,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
     });
     return merged;
   }, [voiceRooms, fetchedVoiceRooms]);
-  
+
   return (
     <div className="mb-3">
       <div className="flex items-center text-base text-gray-800 font-medium mb-1">
@@ -160,7 +158,7 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
       </div>
       {open && (
         <div className="mt-1 space-y-1">
-          {/* Chat rooms section */}
+
           <RoomSection
             title="Chat rooms"
             open={chatOpen}
@@ -181,7 +179,6 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
             onRefreshGroups={onRefreshGroups}
           />
 
-          {/* Voice rooms section */}
           <RoomSection
             title="Voice rooms"
             open={voiceOpen}

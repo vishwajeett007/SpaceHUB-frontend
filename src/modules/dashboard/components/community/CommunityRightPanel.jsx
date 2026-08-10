@@ -28,7 +28,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         list = data?.data?.members || data?.members || [];
       }
       list = (Array.isArray(list) ? list : []).filter((m) => (m.role || '').toUpperCase() !== 'PENDING');
-      
+
       const avatarMap = {};
       const usernameMap = {};
       list.forEach((member) => {
@@ -42,19 +42,19 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
           }
         }
       });
-      
+
       if (Object.keys(avatarMap).length > 0) {
         const storageKey = `community_avatars_${communityId}`;
         const existingAvatars = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
         sessionStorage.setItem(storageKey, JSON.stringify({ ...existingAvatars, ...avatarMap }));
       }
-      
+
       if (Object.keys(usernameMap).length > 0) {
         const storageKey = `community_usernames_${communityId}`;
         const existingUsernames = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
         sessionStorage.setItem(storageKey, JSON.stringify({ ...existingUsernames, ...usernameMap }));
       }
-      
+
       setMembers(list);
 
       const userEmail = user?.email || getStoredUserEmail();
@@ -226,19 +226,18 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
 
   return (
     <>
-      {/* Mobile/Tablet: Slide-in Panel from Right */}
+
       {onClose && (
         <>
-          {/* Overlay */}
-          <div 
+
+          <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={onClose}
           />
-          
-          {/* Slide-in Panel from Right */}
+
           <div className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white z-50 lg:hidden flex flex-col shadow-2xl">
             <div className="flex-1 overflow-y-auto p-6 relative">
-              {/* Close Button */}
+
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded-full transition-colors z-10"
@@ -248,19 +247,17 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              
+
               {renderPanelContent()}
             </div>
           </div>
         </>
       )}
 
-      {/* Desktop: In normal layout (1024px and above) */}
       <div className="hidden lg:block w-80 bg-white h-full overflow-y-auto flex-shrink-0 rounded-xl p-6 border border-gray-500">
         {renderPanelContent()}
       </div>
 
-      {/* Confirm Remove Modal */}
       {confirmOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-24">
           <div className="bg-white rounded-md shadow-lg w-[min(92%,420px)]">

@@ -8,7 +8,7 @@ const initialState = {
   activeTab: 'request',
   processingRequest: null,
   unreadCount: 0,
-  readRequestIds: [], // Track which requests have been read (array of IDs)
+  readRequestIds: [],
   wsConnected: false,
 };
 
@@ -18,7 +18,7 @@ const inboxSlice = createSlice({
   reducers: {
     setRequests: (state, action) => {
       const newRequests = action.payload;
-      // Calculate unread count for new requests
+
       const newUnreadCount = newRequests.filter(req => !state.readRequestIds.includes(req.id)).length;
       state.requests = newRequests;
       state.unreadCount = newUnreadCount;
@@ -32,11 +32,11 @@ const inboxSlice = createSlice({
     },
     addRequest: (state, action) => {
       const newRequest = action.payload;
-      // Check if request already exists
+
       const exists = state.requests.some(r => r.id === newRequest.id);
       if (!exists) {
         state.requests.push(newRequest);
-        // Increment unread count if not already read
+
         if (!state.readRequestIds.includes(newRequest.id)) {
           state.unreadCount += 1;
         }
@@ -44,7 +44,7 @@ const inboxSlice = createSlice({
     },
     addPending: (state, action) => {
       const newPending = action.payload;
-      // Check if pending already exists
+
       const exists = state.pending.some(p => p.id === newPending.id);
       if (!exists) {
         state.pending.push(newPending);
@@ -66,7 +66,7 @@ const inboxSlice = createSlice({
     removeRequest: (state, action) => {
       const requestId = action.payload;
       const request = state.requests.find(r => r.id === requestId);
-      // Decrement unread count if this was unread
+
       if (request && !state.readRequestIds.includes(requestId)) {
         state.unreadCount = Math.max(0, state.unreadCount - 1);
       }

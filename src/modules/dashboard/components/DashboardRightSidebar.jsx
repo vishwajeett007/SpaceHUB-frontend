@@ -81,21 +81,21 @@ const DashboardRightSidebar = ({ onClose }) => {
 
       setRequested((prev) => ({ ...prev, [friendId]: true }));
       try {
-        const friendName = friendUser?.firstName && friendUser?.lastName 
+        const friendName = friendUser?.firstName && friendUser?.lastName
           ? `${friendUser.firstName} ${friendUser.lastName}`
-          : friendUser?.firstName 
+          : friendUser?.firstName
           ? friendUser.firstName
           : friendUser?.username || friendUser?.email || 'user';
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Request sent to ${friendName}`, type: 'success' } }));
       } catch {
-        // Toast delivery is best-effort.
+
       }
     } catch (e) {
       console.error('Failed to send friend request:', e);
       try {
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: e.message || 'Failed to send friend request', type: 'error' } }));
       } catch {
-        // Toast delivery is best-effort.
+
       }
     } finally {
       setAddingFriend((prev) => {
@@ -164,7 +164,7 @@ const DashboardRightSidebar = ({ onClose }) => {
 
   return (
     <div className="w-full h-full overflow-y-auto flex-shrink-0 relative rounded-xl p-4 border border-gray-500 bg-white">
-      {/* Close Button */}
+
       <button
         onClick={onClose}
         className="absolute top-3 lg:top-4 right-3 lg:right-4 w-6 h-6 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded-full transition-colors z-10"
@@ -210,7 +210,6 @@ const DashboardRightSidebar = ({ onClose }) => {
           </div>
         </div>
 
-        {/* Search Results */}
         {searchLoading && (
           <div className="text-gray-600 text-sm text-center py-4">Searching...</div>
         )}
@@ -238,7 +237,7 @@ const DashboardRightSidebar = ({ onClose }) => {
                 }
                 const subtitleText = userItem.username ? `@${userItem.username}` : '';
                 const avatarUrl = userItem.avatarUrl || userItem.avatar || '/avatars/avatar-1.png';
-                
+
                 const friendshipStatus = userItem.friendshipStatus;
                 const friendId = userItem?.userId || userItem?.id;
                 const isFriend = friendshipStatus === 'FRIEND';
@@ -250,16 +249,16 @@ const DashboardRightSidebar = ({ onClose }) => {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                         {avatarUrl ? (
-                          <img 
-                            src={avatarUrl} 
-                            alt={displayName} 
-                            className="w-full h-full object-cover" 
-                            onError={(e) => { 
-                              e.target.style.display = 'none'; 
+                          <img
+                            src={avatarUrl}
+                            alt={displayName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
                               if (e.target.nextSibling) {
                                 e.target.nextSibling.style.display = 'flex';
                               }
-                            }} 
+                            }}
                           />
                         ) : null}
                         <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-semibold hidden">
@@ -320,7 +319,6 @@ const DashboardRightSidebar = ({ onClose }) => {
           </div>
         )}
 
-        {/* Empty State - Only show when no search query */}
         {searchQuery.trim().length < 2 && (
           <>
             <div className="flex justify-center mb-3">

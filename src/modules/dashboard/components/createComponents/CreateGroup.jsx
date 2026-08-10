@@ -20,7 +20,6 @@ const CreateGroup = ({
   const [touchedImage, setTouchedImage] = useState(false);
   const fileInputRef = useRef(null);
 
-
   useEffect(() => {
     if (initialName) setGroupName(initialName);
   }, [initialName]);
@@ -65,16 +64,15 @@ const CreateGroup = ({
 
   const handleNameChange = (e) => {
     const value = e.target.value;
-    
-    // Limit to 30 characters
+
     if (value.length > 30) {
       return;
     }
-    // Block emojis
+
     if (containsEmoji(value)) {
       return;
     }
-    
+
     setGroupName(value);
     onChange?.({ name: value, imageFile });
   };
@@ -184,5 +182,4 @@ const CreateGroup = ({
 };
 
 export default CreateGroup;
-
 

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../../../shared/services/API';
 import { SEO } from '../../../shared';
 
-
 import logo from '../../../assets/landing/logo-removebg-preview.svg';
 import discoverSvg from '../../../assets/landing/discover.svg';
 import card1 from '../../../assets/landing/card1.svg';
@@ -123,7 +122,6 @@ const ScrollStretchedBrandText = () => {
         progress = 1;
       }
 
-      // Apply smoothstep easing to start/end transitions smoothly
       const easedProgress = progress * progress * (3 - 2 * progress);
 
       targetScaleY = easedProgress * 1.85;
@@ -178,8 +176,6 @@ const ScrollStretchedBrandText = () => {
     </div>
   );
 };
-
-
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -345,8 +341,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         jsonLd={landingSchema}
       />
 
-
-      {/* HEADER */}
       <header className="w-full sticky top-0 left-0 px-4 sm:px-10 py-4 sm:py-6 flex items-center justify-between bg-white rounded-b-lg shadow-sm z-50">
         <div className="flex items-center gap-2 sm:gap-3">
           <button
@@ -364,7 +358,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           <span className="text-lg sm:text-xl font-bold text-gray-800">SPACEHUB</span>
         </div>
 
-        {/* Mobile Hamburger Menu Button */}
         <button
           onClick={() => !isMenuOpen && setIsMenuOpen(true)}
           className={`md:hidden p-2 text-gray-700 hover:text-gray-900 transition-colors ${isMenuOpen ? 'invisible pointer-events-none' : ''
@@ -377,9 +370,8 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </svg>
         </button>
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-4 lg:space-x-10">
-          {/* <a href="#Features" className="text-gray-700 hover:text-gray-900 transition-colors">Features</a> */}
+
           <a href="#Contact" className="text-gray-700 hover:text-gray-900 transition-colors">Contact</a>
           <a href="#About" className="text-gray-700 hover:text-gray-900 transition-colors">About</a>
         </nav>
@@ -388,7 +380,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         </Link>
       </header>
 
-      {/* Mobile Hamburger Menu */}
       {isMenuOpen && (
         <>
           <div
@@ -413,12 +404,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
               </div>
             </div>
             <nav className="flex-1 p-4 space-y-4">
-              {/* <button
-                onClick={() => handleMenuClick('Features')}
-                className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-300 rounded-md transition-colors font-medium"
-              >
-                Features
-              </button> */}
+
               <button
                 onClick={() => handleMenuClick('About')}
                 className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-300 rounded-md transition-colors font-medium"
@@ -442,9 +428,7 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         </>
       )}
 
-      {/* MAIN CONTENT LANDMARK */}
       <main id="main-content">
-        {/* HERO SECTION / FEATURES */}
 
       <section
         id="Home"
@@ -457,17 +441,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
       >
         <RevealOnScroll className="text-center relative z-10 max-w-5xl mx-auto">
           <div className="relative bg-transparent p-8 sm:px-12 md:px-16 lg:px-26 max-w-5xl mx-auto mt-10">
-            {/* Border lines extending past corners
-            <div className="absolute top-0 -left-6 -right-6 h-[2px] bg-purple-600/80"></div>
-            <div className="absolute bottom-0 -left-6 -right-6 h-[2px] bg-purple-600/80"></div>
-            <div className="absolute left-0 -top-6 -bottom-6 w-[2px] bg-purple-600/80"></div>
-            <div className="absolute right-0 -top-6 -bottom-6 w-[2px] bg-purple-600/80"></div> */}
-
-            {/* Corner square markers
-            <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div>
-            <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div>
-            <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div>
-            <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-purple-600 border border-white z-10"></div> */}
 
             <div className="inline-block relative">
               <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-blue-600 rounded-md p-0.5">
@@ -504,13 +477,11 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         </RevealOnScroll>
       </section>
 
-      {/* DISCOVER SECTION */}
       <section id="About" className="max-w-screen relative mb-7 sm:mb-[13rem]">
         <RevealOnScroll>
           <img src={discoverSvg} alt="Discover SpaceHUB real-time team chat and collaboration features" width="1200" height="675" decoding="async" className="w-full mx-auto h-auto" loading="lazy" />
         </RevealOnScroll>
 
-        {/* LINE 1 DECORATION */}
         <img
           src={line1}
           alt=""
@@ -523,7 +494,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         />
       </section>
 
-      {/* JOIN YOUR WORKSPACE SECTION */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 pb-0">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <RevealOnScroll className="order-2 lg:order-1">
@@ -541,7 +511,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
         </div>
 
-        {/* LINE 2 DECORATION */}
         <img
           src={line2}
           alt=""
@@ -554,7 +523,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         />
       </section>
 
-      {/* JOIN THE BUZZ SECTION */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 pb-0">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <RevealOnScroll className="text-center order-1 lg:order-1">
@@ -572,7 +540,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
           </RevealOnScroll>
         </div>
 
-        {/* LINE 3 DECORATION */}
         <img
           src={line3}
           alt=""
@@ -585,7 +552,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         />
       </section>
 
-      {/* COLLABORATE & GROW SECTION */}
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 pb-20 sm:pb-28">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <RevealOnScroll className="order-2 lg:order-1">
@@ -604,17 +570,13 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
         </div>
       </section>
 
-
       </main>
-
-      {/* FOOTER */}
 
       <footer id="Contact" className="bg-[#F8F9FA] pt-8 text-gray-900 border-t border-gray-200/50">
         <div className="max-w-full mx-auto">
           <RevealOnScroll>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8 px-4 sm:px-6 lg:px-8">
 
-              {/* Stay in the loop */}
               <div className="md:col-span-5 flex flex-col space-y-4">
                 <h3 className="text-xl font-bold text-[#1E2022]">Stay in the loop!</h3>
                 <p className="text-sm text-gray-600 max-w-sm leading-relaxed">
@@ -644,7 +606,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
                 )}
               </div>
 
-              {/* Quick Links */}
               <div className="md:col-span-3 md:col-start-7 flex flex-col space-y-4">
                 <h3 className="text-base font-bold text-[#1E2022]">Quick links</h3>
                 <ul className="space-y-3">
@@ -660,7 +621,6 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
                 </ul>
               </div>
 
-              {/* Contact Us */}
               <div className="md:col-span-3 flex flex-col space-y-4">
                 <h3 className="text-base font-bold text-[#1E2022]">Contact us</h3>
                 <ul className="space-y-4">
@@ -689,15 +649,12 @@ Spacehub is all about connecting people who love to share ideas, build cool thin
             </div>
           </RevealOnScroll>
 
-
-          {/* Huge Spacehub brand text */}
           <ScrollStretchedBrandText />
 
-          {/* Divider */}
           <div className="px-4 sm:px-6 lg:px-8">
             <hr className="border-t border-gray-200/80" />
           </div>
-          {/* Bottom Copyright & Terms */}
+
           <RevealOnScroll className="flex flex-col sm:flex-row items-center justify-between text-[10px] sm:text-xs font-semibold tracking-tight text-gray-500 uppercase py-5 px-4 sm:px-6 lg:px-8">
             <p>© 2025 SPACEHUB. ALL RIGHTS RESERVED.</p>
             <div className="flex gap-6">

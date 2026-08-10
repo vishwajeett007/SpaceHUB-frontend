@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { readStoredUser } from '../../../../../shared/services/authStorage';
 
 import {
@@ -9,28 +9,28 @@ import {
 } from '../../../../../shared/services/API';
 
 const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, selectedChannel, onSelectChannel, groupName, roomCode, roomId, isLocalGroup = false, canCreate = false, onDeleteChatroom = null, onDeleteVoiceRoom = null, currentUserRole = '', user = null, onSwitchToGeneral = null, onRefreshGroups = null }) => {
-  // For Announcement group, include 'general' channel; for others, filter it out
+
   const isAnnouncement = (title || groupName || '').toLowerCase() === 'announcement';
   const filteredChannels = useMemo(() => {
     const channelList = channels || [];
     return isAnnouncement
-      ? channelList // Keep all channels including 'general' for Announcement
+      ? channelList
       : channelList.filter(ch => ch !== 'general' && ch !== 'General');
   }, [channels, isAnnouncement]);
   const roomType = isVoice ? 'voice' : 'chat';
   const [fetchedChatrooms, setFetchedChatrooms] = useState([]);
-  const [fetchedChatroomsData, setFetchedChatroomsData] = useState([]); // Store full chatroom objects
+  const [fetchedChatroomsData, setFetchedChatroomsData] = useState([]);
   const [fetchedVoiceRooms, setFetchedVoiceRooms] = useState([]);
-  const [fetchedVoiceRoomsData, setFetchedVoiceRoomsData] = useState([]); // Store full voice room objects
+  const [fetchedVoiceRoomsData, setFetchedVoiceRoomsData] = useState([]);
   const [loadingChatrooms, setLoadingChatrooms] = useState(false);
   const [loadingVoiceRooms, setLoadingVoiceRooms] = useState(false);
   const [deletingChatroom, setDeletingChatroom] = useState({});
   const [deletingVoiceRoom, setDeletingVoiceRoom] = useState({});
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, roomName: '', roomType: '', roomId: null, roomCode: null });
   const [voiceRoomModal, setVoiceRoomModal] = useState({ isOpen: false, channelName: '', channelId: null, roomCode: null, roomId: null });
-  
+
   const getChannelId = useCallback((channelName) => `${groupName}:${roomType}:${channelName}`, [groupName, roomType]);
-  
+
   useEffect(() => {
     if (open && !isVoice && roomCode) {
       const fetchChatrooms = async () => {
@@ -49,7 +49,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
           setLoadingChatrooms(false);
         }
       };
-      
+
       fetchChatrooms();
     } else if (open && isVoice && roomId && !isLocalGroup) {
       const fetchVoiceRooms = async () => {
@@ -68,7 +68,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
           setLoadingVoiceRooms(false);
         }
       };
-      
+
       fetchVoiceRooms();
     } else if (!open) {
       setFetchedChatrooms([]);
@@ -121,10 +121,10 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
   }, [open, isVoice, roomCode, roomId]);
 
   const handleDeleteChatroom = useCallback(async (chatroomName, e) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     const chatroom = fetchedChatroomsData.find(cr => (cr.name || cr.chatRoomCode) === chatroomName);
     if (!chatroom || !roomCode) return;
-    
+
     const chatroomId = chatroom.id || chatroom.chatRoomId || chatroom.chatRoomCode;
     if (!chatroomId) {
       window.dispatchEvent(new CustomEvent('toast', {
@@ -154,18 +154,18 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
 
     try {
       await deleteChatroom(roomId, roomCode);
-      
+
       setFetchedChatrooms((prev) => prev.filter(name => name !== roomName));
       setFetchedChatroomsData((prev) => prev.filter(cr => (cr.name || cr.chatRoomCode) !== roomName));
-      
+
       if (onDeleteChatroom) {
         onDeleteChatroom(roomName, roomId);
       }
-      
+
       try {
         const storageKey = `chatroom_${roomCode}_${roomName}`;
         sessionStorage.removeItem(storageKey);
-        
+
         const existingChatrooms = JSON.parse(sessionStorage.getItem('chatrooms') || '[]');
         const updated = existingChatrooms.filter(
           (cr) => !(cr.name === roomName && cr.roomCode === roomCode)
@@ -174,15 +174,15 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       } catch (storageError) {
         console.warn('Failed to update session storage:', storageError);
       }
-      
+
       if (isCurrentlySelected && onSwitchToGeneral) {
         onSwitchToGeneral();
       }
-      
+
       if (onRefreshGroups) {
         onRefreshGroups();
       }
-      
+
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: 'Chatroom deleted successfully', type: 'success' }
       }));
@@ -236,7 +236,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         const userData = readStoredUser() || {};
         requester = userData?.username || userData?.email?.split('@')[0] || '';
       } catch {
-        // Ignore malformed cached user data.
+
       }
     }
 
@@ -255,19 +255,19 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       await deleteVoiceRoom(roomId, roomName, requester);
       setFetchedVoiceRooms((prev) => prev.filter(name => name !== roomName));
       setFetchedVoiceRoomsData((prev) => prev.filter(vr => vr.name !== roomName));
-      
+
       if (onDeleteVoiceRoom) {
         onDeleteVoiceRoom(roomName, roomId);
       }
-      
+
       if (isCurrentlySelected && onSwitchToGeneral) {
         onSwitchToGeneral();
       }
-      
+
       if (onRefreshGroups) {
         onRefreshGroups();
       }
-      
+
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: 'Voice room deleted successfully', type: 'success' }
       }));
@@ -284,7 +284,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       });
     }
   }, [deleteModal, getChannelId, selectedChannel, user, onDeleteVoiceRoom, onSwitchToGeneral, onRefreshGroups]);
-  
+
   const allChannels = useMemo(() => {
     const merged = [...filteredChannels];
     if (isVoice) {
@@ -302,10 +302,10 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
     }
     return merged;
   }, [filteredChannels, fetchedChatrooms, fetchedVoiceRooms, isVoice]);
-  
+
   const handleChannelClick = useCallback((channelName) => {
     const channelId = getChannelId(channelName);
-    
+
     if (isVoice) {
       setVoiceRoomModal({
         isOpen: true,
@@ -318,19 +318,19 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       onSelectChannel?.(channelId, roomCode, roomId);
     }
   }, [getChannelId, isVoice, roomCode, roomId, onSelectChannel]);
-  
+
   const handleStartVoiceRoom = useCallback(() => {
     const { channelId, roomCode, roomId } = voiceRoomModal;
     setVoiceRoomModal({ isOpen: false, channelName: '', channelId: null, roomCode: null, roomId: null });
     onSelectChannel?.(channelId, roomCode, roomId);
   }, [voiceRoomModal, onSelectChannel]);
-  
+
   const handleExitVoiceRoom = useCallback(() => {
     setVoiceRoomModal({ isOpen: false, channelName: '', channelId: null, roomCode: null, roomId: null });
   }, []);
-  
+
   const hasChannels = allChannels.length > 0;
-  
+
   return (
     <div className="mb-2 ml-4">
       <div className="flex items-center justify-between text-base text-gray-800">
@@ -365,13 +365,13 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
             const channelId = getChannelId(channel);
             const isSelected = selectedChannel === channelId;
             const isDeleting = isVoice ? deletingVoiceRoom[channel] : deletingChatroom[channel];
-            const isAuthorized = currentUserRole === 'ADMIN' || 
-                                currentUserRole === 'OWNER' || 
+            const isAuthorized = currentUserRole === 'ADMIN' ||
+                                currentUserRole === 'OWNER' ||
                                 currentUserRole === 'WORKSPACE_OWNER';
             const canDeleteChatroom = !isVoice && canCreate && isAuthorized && !(isAnnouncement && channel.toLowerCase() === 'general');
             const canDeleteVoiceRoom = isVoice && canCreate && isAuthorized;
             const canDelete = canDeleteChatroom || canDeleteVoiceRoom;
-            
+
             return (
               <div
                 key={channel}
@@ -424,7 +424,6 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white md:bg-black rounded-lg shadow-lg max-w-md w-full border md:border-gray-700">
@@ -463,7 +462,6 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         </div>
       )}
 
-      {/* Voice Room Confirmation Modal */}
       {voiceRoomModal.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 modal-backdrop">
           <div className="bg-white md:bg-black rounded-lg shadow-lg max-w-md w-full border md:border-gray-700 modal-content">

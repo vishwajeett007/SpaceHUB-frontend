@@ -38,22 +38,21 @@ const CommunityCard = React.memo(({ community, onClick, isMobile = false }) => {
         onClick={() => onClick?.(community)}
         className="rounded-lg overflow-hidden shadow-sm bg-transparent cursor-pointer aspect-square hover-lift transition-all duration-300 animate-fade-in"
       >
-        {/* Top section - Image */}
+
         <div className="h-[66%] bg-gray-400 relative">
           {bannerImg && !bannerError ? (
-            <img 
-              src={safeUrl(bannerImg)} 
-              alt={title} 
+            <img
+              src={safeUrl(bannerImg)}
+              alt={title}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
               onError={() => setBannerError(true)}
             />
           ) : null}
         </div>
-        
-        {/* Bottom section - Dark grey with logo and community name */}
+
         <div className="h-[34%] bg-[#282828] flex items-center gap-2 px-2">
-          {/* Logo/Icon */}
+
           <div className="w-10 h-10 rounded-md overflow-hidden bg-zinc-400 border border-gray-600 flex-shrink-0">
             {profileImg && !profileError ? (
               <img
@@ -71,7 +70,7 @@ const CommunityCard = React.memo(({ community, onClick, isMobile = false }) => {
               </div>
             )}
           </div>
-          {/* Community Name */}
+
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-white truncate">{title}</h3>
           </div>
@@ -90,26 +89,26 @@ const CommunityCard = React.memo(({ community, onClick, isMobile = false }) => {
       onClick={() => onClick?.(community)}
       className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-[1.02] bg-transparent cursor-pointer hover-lift animate-fade-in"
     >
-      {/* Top banner area */}
+
       <div className="h-40 sm:h-44 bg-gray-400">
         {bannerImg && !bannerError ? (
-          <img 
-            src={safeUrl(bannerImg)} 
-            alt={title} 
+          <img
+            src={safeUrl(bannerImg)}
+            alt={title}
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
             onError={() => setBannerError(true)}
           />
         ) : null}
       </div>
-      {/* Bottom dark card */}
+
       <div className="bg-[#282828] text-white px-4 py-4 min-h-[170px] relative">
         {showMembers && (
           <div className="absolute top-4 right-4 text-sm text-gray-300">
             Members: {members}
           </div>
         )}
-        {/* Profile image above community name */}
+
         <div className="flex items-center justify-between">
           <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-400 border-2 border-[#282828] flex-shrink-0">
             {profileImg && !profileError ? (
@@ -149,7 +148,7 @@ const SkeletonCard = React.memo(({ isMobile = false }) => {
       </div>
     );
   }
-  
+
   return (
     <div className="rounded-lg overflow-hidden shadow-sm bg-transparent">
       <div className="h-40 sm:h-44 bg-gray-200 animate-pulse" />
@@ -231,10 +230,10 @@ const Discover = () => {
       const res = await authenticatedFetch(url, { method: 'GET' });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error((data && (data.message || data.error)) || `HTTP ${res.status}`);
-      
+
       const rawData = data?.data;
-      const list = Array.isArray(rawData) 
-        ? rawData 
+      const list = Array.isArray(rawData)
+        ? rawData
         : (rawData?.communities || data?.communities || []);
 
       if (list.length < 20) {
@@ -285,7 +284,6 @@ const Discover = () => {
     }
   }, [loading, loadingMore, hasMore, searchQuery, fetchCommunities]);
 
-  // Remote search when 3+ characters
   useEffect(() => {
     const query = searchQuery.trim();
     if (debounceRef.current) {
@@ -333,12 +331,12 @@ const Discover = () => {
   }, []);
 
   return (
-    <div 
+    <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
       className="flex-1 min-w-0 flex flex-col h-[calc(100vh-56px)] overflow-y-auto bg-[#E6E6E6] md:bg-gray-100"
     >
-      {/* Desktop Header */}
+
       <div className="hidden md:block bg-gray-200 border-b border-gray-500 px-4 sm:px-6 py-4 flex-shrink-0 rounded-t-xl">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -368,7 +366,6 @@ const Discover = () => {
         </div>
       </div>
 
-      {/* Mobile Header with Search Bar */}
       <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
         <div className="relative">
           <svg
@@ -389,9 +386,8 @@ const Discover = () => {
         </div>
       </div>
 
-      {/* Body */}
       <div className="flex-1 p-4 sm:p-6">
-        {/* Loading and error states */}
+
         {(searching || (!searching && loading && communities.length === 0)) && (
           <div className="grid grid-cols-2 md:grid-cols-1 md:sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 max-w-7xl">
             {Array.from({ length: 6 }).map((_, idx) => (
@@ -402,11 +398,10 @@ const Discover = () => {
         {searchError && <div className="text-red-600">{searchError}</div>}
         {!searching && error && <div className="text-red-600">{error}</div>}
 
-        {/* Results grid - Mobile: 2 columns, Desktop: 3 columns */}
         {!searching && (!loading || communities.length > 0) && !error && (
           <div className="grid grid-cols-2 md:grid-cols-1 md:sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 max-w-7xl">
             {(searchQuery.trim().length >= 3 ? searchResults : communities).map((community) => (
-              <CommunityCard 
+              <CommunityCard
                 key={community.id || community.communityId || community.name}
                 community={community}
                 onClick={handleCommunityClick}
@@ -419,7 +414,6 @@ const Discover = () => {
           </div>
         )}
 
-        {/* Infinite Scroll loading indicator */}
         {loadingMore && (
           <div className="flex justify-center items-center py-6">
             <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -428,7 +422,6 @@ const Discover = () => {
         )}
       </div>
 
-      {/* Join Community Modal */}
       <JoinCommunityModal
         isOpen={showJoinModal}
         onClose={handleCloseModal}

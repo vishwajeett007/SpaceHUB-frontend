@@ -36,16 +36,16 @@ const LocalGroupPage = () => {
     const fetchLocalGroup = async () => {
       setLoading(true);
       setError('');
-      
+
       const storedEmail = getStoredUserEmail();
       const userEmail = user?.email || storedEmail;
-      
+
       if (!userEmail) {
         setError('User email not found');
         setLoading(false);
         return;
       }
-      
+
       try {
         let found = null;
         try {
@@ -59,9 +59,9 @@ const LocalGroupPage = () => {
           const res = await getAllLocalGroups(userEmail);
           const list = res?.data?.groups || res?.groups || res?.data || res?.rooms || [];
           found = list.find(
-            (g) => 
-              String(g.id) === String(id) || 
-              String(g.groupId) === String(id) || 
+            (g) =>
+              String(g.id) === String(id) ||
+              String(g.groupId) === String(id) ||
               String(g.roomId) === String(id) ||
               g.id === Number(id) ||
               g.groupId === Number(id) ||
@@ -157,25 +157,24 @@ const LocalGroupPage = () => {
   if (loading) {
     return (
       <div className="h-screen flex flex-col bg-[#E6E6E6] md:bg-gray-100">
-        {/* Top Navbar skeleton */}
+
         <div className="sticky top-0 z-20 bg-gray-200 border-b border-gray-300 h-14 flex items-center px-4 rounded-b-xl">
           <div className="w-7 h-7 bg-gray-300 rounded mr-2 animate-pulse" />
           <div className="flex-1" />
           <div className="w-24 h-6 bg-gray-300 rounded animate-pulse" />
         </div>
 
-        {/* Main 3-column skeleton layout */}
         <div className="flex flex-1 gap-2 p-2">
-          {/* Left container */}
+
           <div className="flex border border-gray-500 rounded-xl overflow-hidden w-[calc(20rem)] max-w-full">
-            {/* Narrow left bar */}
+
             <div className="w-16 bg-white flex flex-col items-center py-4 space-y-4">
               <div className="w-10 h-10 bg-gray-300 rounded-md animate-pulse" />
               <div className="w-10 h-10 bg-gray-200 rounded-md animate-pulse" />
               <div className="flex-1" />
               <div className="w-10 h-10 bg-gray-200 rounded-md animate-pulse" />
             </div>
-            {/* Panel */}
+
             <div className="w-80 bg-gray-200 h-full p-4 space-y-4">
               <div className="h-6 w-40 bg-gray-300 rounded animate-pulse" />
               <div className="space-y-3">
@@ -186,7 +185,6 @@ const LocalGroupPage = () => {
             </div>
           </div>
 
-          {/* Center panel */}
           <div className="flex-1 bg-white rounded-xl border border-gray-500 p-4 space-y-3">
             <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
             <div className="space-y-2">
@@ -196,7 +194,6 @@ const LocalGroupPage = () => {
             </div>
           </div>
 
-          {/* Right panel */}
           <div className="hidden lg:block w-90 bg-white rounded-xl border border-gray-500 p-6 space-y-4">
             <div className="h-5 w-32 bg-gray-200 rounded animate-pulse" />
             {Array.from({ length: 6 }).map((_, i) => (
@@ -232,7 +229,7 @@ const LocalGroupPage = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-x-hidden bg-[#E6E6E6] md:bg-gray-100">
-      {/* Top Navbar */}
+
       <div className="sticky top-0 z-20 bg-gray-200 border-b border-gray-300 h-14 flex items-center px-4 rounded-b-xl">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/')} className="cursor-pointer hover:opacity-80 transition-opacity">
@@ -243,7 +240,7 @@ const LocalGroupPage = () => {
           <h1 className="text-lg font-semibold text-gray-800">Local-Group</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => dispatch(setShowInbox(true))}
             title='Inbox'
             className="relative w-7 h-7 flex items-center justify-center hover:bg-gray-300 rounded-md transition-colors">
@@ -255,14 +252,13 @@ const LocalGroupPage = () => {
         </div>
       </div>
 
-      {/* Main 3-column layout */}
       <div className="flex flex-1 gap-2 p-2 md:p-2 relative min-h-0 overflow-hidden" style={layoutStyle}>
-        {/* Narrow Left Sidebar + Left Panel Group (no gap between them) */}
+
         <div className={`flex flex-shrink-0 border border-gray-500 rounded-xl h-full ${isMobileView && showCenterPanel ? 'hidden sm:flex' : 'flex sm:flex'} w-full sm:w-auto max-w-full sm:max-w-sm`}>
-          {/* Narrow Left Sidebar */}
+
           <div className="w-16 bg-white flex flex-col items-center py-4 space-y-4 rounded-l-xl h-full">
-            {/* Profile Picture */}
-            <button 
+
+            <button
               onClick={() => navigate('/dashboard/settings')}
               title='Profile Settings'
               className="w-10 h-10 rounded-md bg-gray-300 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
@@ -280,19 +276,16 @@ const LocalGroupPage = () => {
               })()}
             </button>
 
-            {/* Plus Icon */}
             <button
               onClick={() => navigate('/dashboard')}
-              title='Create Community' 
+              title='Create Community'
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors">
               <img src="/avatars/plus.png" alt="Add" className="w-8 h-8" />
             </button>
 
-            {/* Spacer */}
             <div className="flex-1"></div>
 
-            {/* Settings Icon */}
-            <button 
+            <button
               title='Settings'
               onClick={() => navigate('/dashboard/settings')}
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-gray-100 transition-colors"
@@ -300,8 +293,7 @@ const LocalGroupPage = () => {
               <img src="/icons/setting.svg" alt="Settings" className="w-5 h-5" />
             </button>
 
-            {/* Logout Icon */}
-            <button 
+            <button
               title='Logout'
               onClick={handleLogout}
               className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-red-700 transition-colors"
@@ -312,19 +304,18 @@ const LocalGroupPage = () => {
             </button>
           </div>
 
-          {/* Local-Group Left Panel */}
           <CommunityLeftPanel community={localGroup} onBack={handleBack} isLocalGroup={true} />
         </div>
         <>
           {showCenterPanel && isMobileView && (
             <>
-              <div 
+              <div
                 className="fixed inset-0 bg-black/50 z-30 sm:hidden"
                 onClick={handleCloseCenterPanel}
               />
               <div className="fixed inset-0 z-40 sm:hidden flex flex-col">
-                <CommunityCenterPanel 
-                  community={localGroup} 
+                <CommunityCenterPanel
+                  community={localGroup}
                   onToggleRightPanel={() => setShowRightPanel(true)}
                   onBack={handleCloseCenterPanel}
                   isLocalGroup={true}
@@ -332,20 +323,19 @@ const LocalGroupPage = () => {
               </div>
             </>
           )}
-          {/* Tablet & Desktop: Always show center panel */}
+
           <div className="hidden sm:flex flex-1 min-w-0">
-            <CommunityCenterPanel 
-              community={localGroup} 
+            <CommunityCenterPanel
+              community={localGroup}
               onToggleRightPanel={() => setShowRightPanel(true)}
               isLocalGroup={true}
             />
           </div>
         </>
 
-        {/* Local-Group Right Panel - Desktop only */}
         <div className="hidden lg:flex w-full max-w-xs">
-          <CommunityRightPanel 
-            community={localGroup} 
+          <CommunityRightPanel
+            community={localGroup}
             isLocalGroup={true}
             onClose={showRightPanel ? () => setShowRightPanel(false) : null}
           />
@@ -358,8 +348,8 @@ const LocalGroupPage = () => {
             onClick={() => setShowRightPanel(false)}
           />
           <div className="relative ml-auto w-[calc(100%-1rem)] sm:max-w-xs md:max-w-sm h-[calc(100%-1rem)] my-2 mr-2 bg-white rounded-xl shadow-2xl overflow-hidden">
-            <CommunityRightPanel 
-              community={localGroup} 
+            <CommunityRightPanel
+              community={localGroup}
               isLocalGroup={true}
               onClose={() => setShowRightPanel(false)}
             />

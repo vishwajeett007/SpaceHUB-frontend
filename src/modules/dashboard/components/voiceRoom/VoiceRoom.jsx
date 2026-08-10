@@ -60,7 +60,7 @@ const VoiceRoom = ({
           minHeight: '140px',
         }}
       >
-        {/* Video or Avatar Container */}
+
         {showVideo ? (
           <VideoElement stream={p.stream} isMuted={p.muted} isSelf={p.isSelf} />
         ) : (
@@ -75,7 +75,6 @@ const VoiceRoom = ({
           </div>
         )}
 
-        {/* Name and Status Overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900/90 via-gray-800/60 to-transparent p-3 sm:p-4">
           <div className="text-white font-semibold text-sm sm:text-base truncate mb-1" title={p?.name || ''}>
             {p?.name || 'Member'} {p?.isSelf ? '(You)' : ''}
@@ -109,7 +108,6 @@ const VoiceRoom = ({
           </div>
         </div>
 
-        {/* Speaking indicator border */}
         {p?.isSpeaking && !p?.muted && (
           <div className="absolute inset-0 border-4 border-green-500 rounded-xl animate-pulse pointer-events-none shadow-lg" />
         )}
@@ -147,7 +145,7 @@ const VoiceRoom = ({
 
   return (
     <div className="flex-1 bg-gray-50 h-full md:h-[calc(100vh-56px)] flex flex-col rounded-xl border border-gray-300 overflow-hidden shadow-lg">
-      {/* Header */}
+
       <div className="h-14 md:h-16 border-b border-gray-200 flex items-center gap-3 px-4 md:px-6 bg-white shadow-sm">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {onBack && (
@@ -176,7 +174,6 @@ const VoiceRoom = ({
         </div>
       </div>
 
-      {/* Video Grid Container */}
       <div className="flex-1 overflow-auto min-h-0 p-3 sm:p-4 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100">
         {showCallEnded ? (
           <div className="h-full flex items-center justify-center">
@@ -233,7 +230,6 @@ const VoiceRoom = ({
         )}
       </div>
 
-      {/* Controls */}
       <div className="px-4 pb-4 sm:pb-6 flex-shrink-0">
         {showCallEnded ? (
           <div className="mx-auto w-full sm:w-[min(360px,90%)] bg-white/90 border border-gray-200 rounded-2xl shadow-lg px-4 py-4 flex items-center justify-center">
@@ -249,7 +245,7 @@ const VoiceRoom = ({
           </div>
         ) : (
           <div className="mx-auto w-full sm:w-[min(480px,95%)] bg-black/80 rounded-2xl flex items-center justify-center gap-3 sm:gap-5 py-4 px-4 border border-gray-200 shadow-lg">
-            {/* Microphone Mute Toggle */}
+
             <button
               onClick={onToggleMute}
               disabled={!isConnected}
@@ -265,7 +261,6 @@ const VoiceRoom = ({
               />
             </button>
 
-            {/* Camera Video Toggle */}
             <button
               onClick={onToggleVideo}
               disabled={!isConnected}
@@ -281,7 +276,6 @@ const VoiceRoom = ({
               </svg>
             </button>
 
-            {/* Leave Room Button */}
             <button
               onClick={onLeave}
               disabled={!isConnected && !callActive}

@@ -99,7 +99,7 @@ const ChatRoom = ({
   currentUser = {},
   messages = [],
   onSend,
-  chatUser = null, 
+  chatUser = null,
   onBack = null,
   sendMessage = null,
   onToggleRightPanel = null,
@@ -108,9 +108,9 @@ const ChatRoom = ({
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
-  const [attachments, setAttachments] = useState([]); 
+  const [attachments, setAttachments] = useState([]);
   const [expandedMessageIds, setExpandedMessageIds] = useState({});
-  const [presignedUrls, setPresignedUrls] = useState({}); // Cache for presigned URLs
+  const [presignedUrls, setPresignedUrls] = useState({});
   const [enlargedImage, setEnlargedImage] = useState(null);
 
   const fileInputRef = useRef(null);
@@ -149,11 +149,10 @@ const ChatRoom = ({
     }
   }, [presignedUrls]);
 
-  // Fetch presigned URLs for fileKeys
   useEffect(() => {
     const fetchPresignedUrls = async () => {
       const fileKeysToFetch = new Set();
-      
+
       messages.forEach((msg) => {
         if (Array.isArray(msg.images)) {
           msg.images.forEach((img) => {
@@ -176,7 +175,7 @@ const ChatRoom = ({
         try {
           const extension = fileKey.split('.').pop()?.toLowerCase();
           const contentType = contentTypeMap[extension] || 'application/octet-stream';
-          
+
           const url = await getPresignedDownloadUrl(fileKey, contentType);
           if (url) {
             setPresignedUrls(prev => ({ ...prev, [fileKey]: url }));
@@ -192,7 +191,7 @@ const ChatRoom = ({
     if (messages.length > 0) {
       fetchPresignedUrls();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [messages]);
 
   useEffect(() => {
@@ -206,7 +205,7 @@ const ChatRoom = ({
   const onFilesSelected = useCallback(async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    
+
     const newAttachments = files.map((file) => ({
       file,
       url: URL.createObjectURL(file),
@@ -216,14 +215,14 @@ const ChatRoom = ({
       fileName: file.name,
       contentType: file.type || 'application/octet-stream'
     }));
-    
+
     setAttachments((prev) => [...prev, ...newAttachments]);
     e.target.value = '';
-    
+
     newAttachments.forEach(async (attachment) => {
       try {
         const uploadResult = await uploadFileAndGetUrl(attachment.file);
-        
+
         setAttachments((prev) => {
           const updated = [...prev];
           const attachmentIndex = prev.findIndex(
@@ -246,7 +245,7 @@ const ChatRoom = ({
         window.dispatchEvent(new CustomEvent('toast', {
           detail: { message: `Failed to upload ${attachment.fileName}: ${error.message}`, type: 'error' }
         }));
-        
+
         setAttachments((prev) => prev.filter((att) => att.file !== attachment.file));
       }
     });
@@ -266,7 +265,7 @@ const ChatRoom = ({
     const readyAttachments = attachments.filter(
       (att) => !att.uploading && (att.fileKey || att.fileUrl)
     );
-    
+
     if (!trimmed && readyAttachments.length === 0) {
       if (attachments.some(att => att.uploading)) {
         window.dispatchEvent(new CustomEvent('toast', {
@@ -275,10 +274,10 @@ const ChatRoom = ({
       }
       return;
     }
-    
+
     const selfAvatar = currentUser?.avatarUrl || '/avatars/avatar-1.png';
     const selfName = currentUser?.username || currentUser?.email || 'You';
-    
+
     if (sendMessage) {
       sendMessage(trimmed, readyAttachments);
     } else {
@@ -291,7 +290,7 @@ const ChatRoom = ({
         avatar: selfAvatar,
         isSelf: true,
         images: readyAttachments.filter(att => {
-          const isImage = att.contentType?.startsWith('image/') || 
+          const isImage = att.contentType?.startsWith('image/') ||
             ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(
               att.fileName?.toLowerCase().split('.').pop()
             );
@@ -301,12 +300,12 @@ const ChatRoom = ({
       };
       onSend?.(newMsg);
     }
-    
+
     setMessage('');
     try {
       attachments.forEach((a) => URL.revokeObjectURL(a.url));
     } catch {
-      // Object URL cleanup is best-effort.
+
     }
     setAttachments([]);
     try {
@@ -316,7 +315,7 @@ const ChatRoom = ({
         }
       });
     } catch {
-      // Scrolling is a non-critical enhancement.
+
     }
   }, [message, attachments, currentUser, sendMessage, onSend]);
 
@@ -352,10 +351,10 @@ const ChatRoom = ({
 
   return (
     <div className="flex-1 min-w-0 bg-white h-full md:h-[calc(100vh-56px)] flex flex-col rounded-xl border border-gray-500 overflow-hidden md:bg-white">
-      {/* Header - Mobile Design */}
+
       <div className="h-14 md:h-12 border-b border-gray-300 flex items-center justify-between px-4 bg-white">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* Back Button*/}
+
           {onBack && (
             <button
               onClick={handleBack}
@@ -366,8 +365,7 @@ const ChatRoom = ({
               </svg>
             </button>
           )}
-          
-          {/* User Info */}
+
           {chatUser ? (
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
@@ -392,8 +390,7 @@ const ChatRoom = ({
             <div className="font-semibold text-gray-800 truncate">{title}</div>
           )}
         </div>
-        
-        {/* Action Buttons */}
+
         {onToggleRightPanel && (
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
@@ -409,7 +406,6 @@ const ChatRoom = ({
         )}
       </div>
 
-      {/* Messages */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-4 bg-gray-50">
         {messages && messages.length > 0 && (
           <>
@@ -420,7 +416,7 @@ const ChatRoom = ({
               const prev = messages[idx - 1];
               const showDateChip = !!prev && formatDateChip(prev.createdAt) !== formatDateChip(m.createdAt);
               const isSelf = !!m.isSelf;
-              
+
               if (m.type === 'system') {
                 const variantClass = systemVariantStyles[m.systemVariant] || 'bg-gray-200 text-gray-700 border border-gray-300';
                 return (
@@ -448,15 +444,14 @@ const ChatRoom = ({
                   )}
                   <div className="flex gap-3 justify-start items-start">
                     <div className="hidden" />
-                    
-                    {/* Message Bubble */}
+
                     <div className="flex flex-col items-start flex-1 min-w-0 w-full">
                       <div className={`rounded-sm border-l-4 px-4 py-3 w-full ${
-                        isSelf 
-                          ? 'bg-yellow-100/90 border border-yellow-300 border-l-yellow-400' 
+                        isSelf
+                          ? 'bg-yellow-100/90 border border-yellow-300 border-l-yellow-400'
                           : 'bg-zinc-200 border border-gray-400 border-l-gray-600'
                       }`}>
-                        {/* Author Header */}
+
                         <div className="flex items-center gap-2 mb-2">
                           <img
                             src={m.avatar || '/avatars/avatar-1.png'}
@@ -468,9 +463,8 @@ const ChatRoom = ({
                           <span className="text-xs text-gray-500">{formatTime(m.createdAt)}</span>
                         </div>
 
-                        {/* Text Message Content */}
                         {Boolean(m.text && (!m.isFile || (m.text !== m.fileName && m.text !== 'file'))) && (
-                          <div 
+                          <div
                             className="whitespace-pre-wrap break-words text-sm text-gray-800 text-left mb-2"
                             style={
                               shouldClampMessage(m.text) && !expandedMessageIds[m.id]
@@ -490,7 +484,6 @@ const ChatRoom = ({
                           </button>
                         )}
 
-                        {/* Image Previews */}
                         {Array.isArray(m.images) && m.images.length > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-2 max-w-full">
                             {m.images.map((img, i) => {
@@ -531,7 +524,6 @@ const ChatRoom = ({
                           </div>
                         )}
 
-                        {/* Shared File Attachment Card & Download Button (for non-images or files without image preview array) */}
                         {(!Array.isArray(m.images) || m.images.length === 0) && (m.isFile || m.fileKey || m.fileUrl || String(m.type || '').toUpperCase() === 'FILE') && (
                           <div className="mt-2 bg-white/90 rounded-lg p-3 flex items-center justify-between gap-3 border border-gray-300 shadow-sm">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -549,7 +541,7 @@ const ChatRoom = ({
                                 </div>
                               </div>
                             </div>
-                            
+
                             <button
                               onClick={() => handleFileDownload(
                                 m.fileUrl || (m.images && m.images[0]),
@@ -569,7 +561,7 @@ const ChatRoom = ({
                         )}
                       </div>
                     </div>
-                    
+
                   </div>
                 </React.Fragment>
               );
@@ -589,7 +581,6 @@ const ChatRoom = ({
         )}
       </div>
 
-      {/* Composer */}
       <div className="px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 bg-black/90">
         {attachments.length > 0 && (
           <div className="mb-2 grid grid-cols-3 gap-2">
@@ -609,7 +600,7 @@ const ChatRoom = ({
                       try {
                         URL.revokeObjectURL(a.url);
                       } catch {
-                        // Object URL cleanup is best-effort.
+
                       }
                       return updated;
                     });
@@ -624,7 +615,7 @@ const ChatRoom = ({
           </div>
         )}
         <div className="relative flex items-center gap-1.5 sm:gap-2">
-          {/* Emoji Button */}
+
           <button
             onClick={() => setShowEmoji(!showEmoji)}
             disabled={isReadOnly}
@@ -635,8 +626,7 @@ const ChatRoom = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
-          
-          {/* Attachment Button */}
+
           <button
             onClick={onPickFiles}
             disabled={isReadOnly}
@@ -647,16 +637,15 @@ const ChatRoom = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
             </svg>
           </button>
-          <input 
-            ref={fileInputRef} 
-            type="file" 
-            multiple 
-            className="hidden" 
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
             onChange={onFilesSelected}
-            accept=".pdf,.xml,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.txt,.csv,.rtf,.zip,.rar,.7z,.odt,.ods,.odp,image/*" 
+            accept=".pdf,.xml,.pptx,.ppt,.doc,.docx,.xls,.xlsx,.txt,.csv,.rtf,.zip,.rar,.7z,.odt,.ods,.odp,image/*"
           />
-          
-          {/* Message Input */}
+
           <input
             type="text"
             value={message}
@@ -672,8 +661,7 @@ const ChatRoom = ({
             className="flex-1 bg-white text-black placeholder-gray-400 rounded-md px-2 py-2 sm:px-3 sm:py-2 md:px-4 md:py-2.5 outline-none transition-colors text-left text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
             ref={messageInputRef}
           />
-          
-          {/* Send Button */}
+
           <button
             onClick={handleSend}
             disabled={isReadOnly || (!message.trim() && attachments.filter(att => !att.uploading && (att.fileKey || att.fileUrl)).length === 0) || attachments.some(att => att.uploading)}
@@ -682,8 +670,7 @@ const ChatRoom = ({
           >
             <img src="/icons/msg_send_icon.svg" alt="Send message" className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
-          
-          {/* Emoji Picker */}
+
           {showEmoji && (
             <div className="absolute bottom-14 left-2 bg-gray-800 text-white rounded-lg shadow-lg border border-gray-600 p-2 grid grid-cols-6 gap-2 z-10">
               {emojis.map((em) => (
@@ -701,7 +688,6 @@ const ChatRoom = ({
         </div>
       </div>
 
-      {/* Image Enlargement Modal Lightbox */}
       {enlargedImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fadeIn"
@@ -711,7 +697,7 @@ const ChatRoom = ({
             className="relative max-w-5xl max-h-[90vh] flex flex-col items-center justify-center bg-transparent rounded-lg p-2"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Action Bar */}
+
             <div className="w-full flex items-center justify-between gap-4 mb-3 text-white">
               <div className="text-sm font-semibold truncate max-w-md">
                 {enlargedImage.fileName || 'Image Preview'}
@@ -737,7 +723,6 @@ const ChatRoom = ({
               </div>
             </div>
 
-            {/* Enlarged Image */}
             <img
               src={enlargedImage.url}
               alt={enlargedImage.fileName || 'Enlarged Preview'}

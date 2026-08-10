@@ -66,10 +66,10 @@ export const isImageFile = ({ contentType = '', fileName = '', fileKey = '', fil
   if (String(contentType).toLowerCase().startsWith('image/')) return true;
 
   const targetStr = String(fileName || fileKey || fileUrl).toLowerCase();
-  if (targetStr.startsWith('data:image/')) return true;
+  if (targetStr.includes('data:image/')) return true;
 
   const cleanStr = targetStr.split('?')[0].split('#')[0];
-  const extension = cleanStr.split('.').pop();
+  const extension = cleanStr.split('.').pop().trim();
   return IMAGE_EXTENSIONS.has(extension);
 };
 
@@ -126,7 +126,11 @@ export const normalizeCommunityMessage = (message = {}, context = {}) => {
   if (isCommunityFileMessage(message)) {
     const fileKey = message.fileKey || message.file_key || message.s3Key || message.s3_key || '';
     const fileUrl = message.fileUrl || message.file_url || message.s3Url || message.s3_url || message.url || '';
-    const fileIdentifier = fileKey || fileUrl;
+    const fileIdentifier = (fileUrl && (fileUrl.startsWith('http') || fileUrl.startsWith('data:')))
+      ? fileUrl
+      : (fileKey && (fileKey.startsWith('http') || fileKey.startsWith('data:')))
+        ? fileKey
+        : (fileUrl || fileKey);
     const fileName = message.fileName || message.file_name || message.text || message.message || message.content || 'file';
     const contentType = message.contentType || message.content_type || '';
     const isImage = isImageFile({ contentType, fileName, fileKey, fileUrl });

@@ -61,7 +61,7 @@ const DashboardRightSidebar = ({ onClose }) => {
     }
   }, []);
 
-  const handleAddFriend = async (friendUser) => {
+  const handleAddFriend = useCallback(async (friendUser) => {
     const userEmail = user?.email || getStoredUserEmail();
     const friendId = friendUser?.id || friendUser?.userId;
 
@@ -76,12 +76,9 @@ const DashboardRightSidebar = ({ onClose }) => {
 
     try {
       const response = await sendFriendRequest(userEmail, friendId);
-      console.log('Friend request sent:', response);
 
-      // Dispatch event for other components (need)
       window.dispatchEvent(new CustomEvent('user:add-friend', { detail: { user: friendUser, response } }));
 
-      // Mark as requested and show toast
       setRequested((prev) => ({ ...prev, [friendId]: true }));
       try {
         const friendName = friendUser?.firstName && friendUser?.lastName 
@@ -107,12 +104,12 @@ const DashboardRightSidebar = ({ onClose }) => {
         return updated;
       });
     }
-  };
+  }, [user]);
 
   const [cancellingFriend, setCancellingFriend] = useState({});
   const [hoveredButton, setHoveredButton] = useState({});
 
-  const handleCancelFriend = async (friendUser) => {
+  const handleCancelFriend = useCallback(async (friendUser) => {
     const userEmail = user?.email || getStoredUserEmail();
     const friendId = friendUser?.id || friendUser?.userId;
 
@@ -157,13 +154,13 @@ const DashboardRightSidebar = ({ onClose }) => {
         return updated;
       });
     }
-  };
+  }, [user]);
 
-  const handleSendRequest = () => {
+  const handleSendRequest = useCallback(() => {
     if (searchQuery.trim().length >= 2) {
       handleSearch(searchQuery);
     }
-  };
+  }, [searchQuery, handleSearch]);
 
   return (
     <div className="w-full h-full overflow-y-auto flex-shrink-0 relative rounded-xl p-4 border border-gray-500 bg-white">
@@ -344,4 +341,4 @@ const DashboardRightSidebar = ({ onClose }) => {
   );
 };
 
-export default DashboardRightSidebar;
+export default React.memo(DashboardRightSidebar);

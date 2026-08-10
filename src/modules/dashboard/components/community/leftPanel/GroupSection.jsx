@@ -208,5 +208,5 @@ const GroupSection = ({ groupName, open, onToggle, chatRooms, voiceRooms, onAddC
   );
 };
 
-export default GroupSection;
+export default React.memo(GroupSection);
 

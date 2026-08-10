@@ -29,8 +29,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, roomName: '', roomType: '', roomId: null, roomCode: null });
   const [voiceRoomModal, setVoiceRoomModal] = useState({ isOpen: false, channelName: '', channelId: null, roomCode: null, roomId: null });
   
-  const getChannelId = (channelName) => `${groupName}:${roomType}:${channelName}`;
-  
+  const getChannelId = useCallback((channelName) => `${groupName}:${roomType}:${channelName}`, [groupName, roomType]);
   
   useEffect(() => {
     if (open && !isVoice && roomCode) {
@@ -39,7 +38,6 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         try {
           const response = await getChatroomsSummary(roomCode);
           const chatroomsData = response?.data || [];
-          // Store full chatroom objects for delete functionality
           setFetchedChatroomsData(chatroomsData);
           const chatroomNames = chatroomsData.map((cr) => cr.name || cr.chatRoomCode).filter(Boolean);
           setFetchedChatrooms(chatroomNames);
@@ -59,7 +57,6 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         try {
           const response = await getVoiceRoomsList(roomId);
           const voiceRoomsData = response?.data || response?.voiceRooms || [];
-          // Store full voice room objects for delete functionality
           setFetchedVoiceRoomsData(voiceRoomsData);
           const voiceRoomNames = voiceRoomsData.map((vr) => vr.name).filter(Boolean);
           setFetchedVoiceRooms(voiceRoomNames);
@@ -81,7 +78,6 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
     }
   }, [open, isVoice, roomCode, roomId, isLocalGroup]);
 
-  // Listen for chatroom/voice room creation events to refetch
   useEffect(() => {
     if (!open) return;
 
@@ -124,7 +120,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
     };
   }, [open, isVoice, roomCode, roomId]);
 
-  const handleDeleteChatroom = async (chatroomName, e) => {
+  const handleDeleteChatroom = useCallback(async (chatroomName, e) => {
     e.stopPropagation(); 
     const chatroom = fetchedChatroomsData.find(cr => (cr.name || cr.chatRoomCode) === chatroomName);
     if (!chatroom || !roomCode) return;
@@ -144,13 +140,12 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       roomId: chatroomId,
       roomCode: roomCode
     });
-  };
+  }, [fetchedChatroomsData, roomCode]);
 
-  const confirmDeleteChatroom = async () => {
+  const confirmDeleteChatroom = useCallback(async () => {
     const { roomName, roomId, roomCode } = deleteModal;
     if (!roomName || !roomId || !roomCode) return;
 
-    // Check if the deleted room is currently selected
     const deletedChannelId = getChannelId(roomName);
     const isCurrentlySelected = selectedChannel === deletedChannelId;
 
@@ -160,16 +155,13 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
     try {
       await deleteChatroom(roomId, roomCode);
       
-      // Remove from local state
       setFetchedChatrooms((prev) => prev.filter(name => name !== roomName));
       setFetchedChatroomsData((prev) => prev.filter(cr => (cr.name || cr.chatRoomCode) !== roomName));
       
-      // Call parent callback if provided
       if (onDeleteChatroom) {
         onDeleteChatroom(roomName, roomId);
       }
       
-      // Remove from session storage
       try {
         const storageKey = `chatroom_${roomCode}_${roomName}`;
         sessionStorage.removeItem(storageKey);
@@ -183,12 +175,10 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         console.warn('Failed to update session storage:', storageError);
       }
       
-      // If the deleted room was currently selected, switch to general
       if (isCurrentlySelected && onSwitchToGeneral) {
         onSwitchToGeneral();
       }
       
-      // Refresh groups to update the list
       if (onRefreshGroups) {
         onRefreshGroups();
       }
@@ -208,9 +198,9 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         return updated;
       });
     }
-  };
+  }, [deleteModal, getChannelId, selectedChannel, onDeleteChatroom, onSwitchToGeneral, onRefreshGroups]);
 
-  const handleDeleteVoiceRoom = async (voiceRoomName, e) => {
+  const handleDeleteVoiceRoom = useCallback(async (voiceRoomName, e) => {
     e.stopPropagation();
     const voiceRoom = fetchedVoiceRoomsData.find(vr => vr.name === voiceRoomName);
     if (!voiceRoom || !roomId) return;
@@ -229,13 +219,12 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       roomId: chatRoomId,
       roomCode: null
     });
-  };
+  }, [fetchedVoiceRoomsData, roomId]);
 
-  const confirmDeleteVoiceRoom = async () => {
+  const confirmDeleteVoiceRoom = useCallback(async () => {
     const { roomName, roomId } = deleteModal;
     if (!roomName || !roomId) return;
 
-    // Check if the deleted room is currently selected
     const deletedChannelId = getChannelId(roomName);
     const isCurrentlySelected = selectedChannel === deletedChannelId;
 
@@ -247,7 +236,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         const userData = readStoredUser() || {};
         requester = userData?.username || userData?.email?.split('@')[0] || '';
       } catch {
-        // Ignore malformed cached user data and fall back to the missing-user flow below.
+        // Ignore malformed cached user data.
       }
     }
 
@@ -271,12 +260,10 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         onDeleteVoiceRoom(roomName, roomId);
       }
       
-      // If the deleted room was currently selected, switch to general
       if (isCurrentlySelected && onSwitchToGeneral) {
         onSwitchToGeneral();
       }
       
-      // Refresh groups to update the list
       if (onRefreshGroups) {
         onRefreshGroups();
       }
@@ -296,7 +283,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         return updated;
       });
     }
-  };
+  }, [deleteModal, getChannelId, selectedChannel, user, onDeleteVoiceRoom, onSwitchToGeneral, onRefreshGroups]);
   
   const allChannels = useMemo(() => {
     const merged = [...filteredChannels];
@@ -307,16 +294,16 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         }
       });
     } else {
-    fetchedChatrooms.forEach((name) => {
-      if (!merged.includes(name)) {
-        merged.push(name);
-      }
-    });
+      fetchedChatrooms.forEach((name) => {
+        if (!merged.includes(name)) {
+          merged.push(name);
+        }
+      });
     }
     return merged;
   }, [filteredChannels, fetchedChatrooms, fetchedVoiceRooms, isVoice]);
   
-  const handleChannelClick = (channelName) => {
+  const handleChannelClick = useCallback((channelName) => {
     const channelId = getChannelId(channelName);
     
     if (isVoice) {
@@ -328,20 +315,19 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
         roomId: roomId
       });
     } else {
-      // For chat rooms, directly select
       onSelectChannel?.(channelId, roomCode, roomId);
     }
-  };
+  }, [getChannelId, isVoice, roomCode, roomId, onSelectChannel]);
   
-  const handleStartVoiceRoom = () => {
+  const handleStartVoiceRoom = useCallback(() => {
     const { channelId, roomCode, roomId } = voiceRoomModal;
     setVoiceRoomModal({ isOpen: false, channelName: '', channelId: null, roomCode: null, roomId: null });
     onSelectChannel?.(channelId, roomCode, roomId);
-  };
+  }, [voiceRoomModal, onSelectChannel]);
   
-  const handleExitVoiceRoom = () => {
+  const handleExitVoiceRoom = useCallback(() => {
     setVoiceRoomModal({ isOpen: false, channelName: '', channelId: null, roomCode: null, roomId: null });
-  };
+  }, []);
   
   const hasChannels = allChannels.length > 0;
   
@@ -512,4 +498,4 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
   );
 };
 
-export default RoomSection;
+export default React.memo(RoomSection);

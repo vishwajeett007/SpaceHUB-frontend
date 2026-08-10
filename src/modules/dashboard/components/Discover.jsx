@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { authenticatedFetch, BASE_URL, searchCommunities } from '../../../shared/services/API';
 import JoinCommunityModal from './JoinCommunityModal';
 
@@ -14,7 +14,15 @@ const getMemberCount = (community) => {
   return 0;
 };
 
-const CommunityCard = ({ community, onClick, isMobile = false }) => {
+const safeUrl = (rawUrl) => {
+  if (!rawUrl) return '';
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) {
+    return rawUrl;
+  }
+  return `${BASE_URL}${rawUrl}`;
+};
+
+const CommunityCard = React.memo(({ community, onClick, isMobile = false }) => {
   const title = community.name || 'Untitled';
   const desc = community.description || '';
   const bannerImg = community.bannerUrl || '';
@@ -23,14 +31,6 @@ const CommunityCard = ({ community, onClick, isMobile = false }) => {
   const [bannerError, setBannerError] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const showMembers = members !== null && members !== undefined && members !== '';
-
-  const safeUrl = (rawUrl) => {
-    if (!rawUrl) return '';
-    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) {
-      return rawUrl;
-    }
-    return `${BASE_URL}${rawUrl}`;
-  };
 
   if (isMobile) {
     return (
@@ -136,9 +136,9 @@ const CommunityCard = ({ community, onClick, isMobile = false }) => {
       </div>
     </div>
   );
-};
+});
 
-const SkeletonCard = ({ isMobile = false }) => {
+const SkeletonCard = React.memo(({ isMobile = false }) => {
   if (isMobile) {
     return (
       <div className="rounded-lg overflow-hidden shadow-sm bg-transparent aspect-square">
@@ -175,7 +175,7 @@ const SkeletonCard = ({ isMobile = false }) => {
       </div>
     </div>
   );
-};
+});
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,11 +209,14 @@ const Discover = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const fetchCommunities = async (pageToFetch = 0, isAppend = false) => {
+  const fetchCommunities = useCallback(async (pageToFetch = 0, isAppend = false) => {
     if (isAppend) {
       setLoadingMore(true);
     } else {
-      if (communities.length === 0) setLoading(true);
+      setCommunities((prev) => {
+        if (prev.length === 0) setLoading(true);
+        return prev;
+      });
     }
     setError('');
 
@@ -264,13 +267,13 @@ const Discover = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCommunities(0, false);
-  }, []);
+  }, [fetchCommunities]);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current || loading || loadingMore || !hasMore || searchQuery.trim().length >= 3) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     if (scrollHeight - scrollTop - clientHeight < 150) {
@@ -280,7 +283,7 @@ const Discover = () => {
         return nextPage;
       });
     }
-  };
+  }, [loading, loadingMore, hasMore, searchQuery, fetchCommunities]);
 
   // Remote search when 3+ characters
   useEffect(() => {
@@ -319,15 +322,15 @@ const Discover = () => {
     };
   }, [searchQuery]);
 
-  const handleCommunityClick = (community) => {
+  const handleCommunityClick = useCallback((community) => {
     setSelectedCommunity(community);
     setShowJoinModal(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowJoinModal(false);
     setSelectedCommunity(null);
-  };
+  }, []);
 
   return (
     <div 
@@ -435,4 +438,4 @@ const Discover = () => {
   );
 };
 
-export default Discover;
+export default React.memo(Discover);

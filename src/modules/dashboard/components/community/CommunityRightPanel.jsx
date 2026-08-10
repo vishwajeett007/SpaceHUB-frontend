@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { getCommunityMembers, getLocalGroupMembers, removeCommunityMember } from '../../../../shared/services/API';
 import { useAuth } from '../../../../shared/contexts/AuthContextContext';
 import { getStoredUserEmail } from '../../../../shared/services/authStorage';
@@ -14,7 +14,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
   const [confirmTarget, setConfirmTarget] = useState(null);
   const communityId = useMemo(() => community?.id || community?.communityId || community?.community_id, [community]);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     if (!communityId) return;
     setLoading(true);
     setError('');
@@ -29,7 +29,6 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
       }
       list = (Array.isArray(list) ? list : []).filter((m) => (m.role || '').toUpperCase() !== 'PENDING');
       
-      // Store avatar URLs and usernames in session storage for use in chat rooms and voice rooms
       const avatarMap = {};
       const usernameMap = {};
       list.forEach((member) => {
@@ -44,14 +43,12 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         }
       });
       
-      // Store avatars in session storage with community ID as key
       if (Object.keys(avatarMap).length > 0) {
         const storageKey = `community_avatars_${communityId}`;
         const existingAvatars = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
         sessionStorage.setItem(storageKey, JSON.stringify({ ...existingAvatars, ...avatarMap }));
       }
       
-      // Store usernames in session storage with community ID as key
       if (Object.keys(usernameMap).length > 0) {
         const storageKey = `community_usernames_${communityId}`;
         const existingUsernames = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
@@ -60,7 +57,6 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
       
       setMembers(list);
 
-      // Find current user's role
       const userEmail = user?.email || getStoredUserEmail();
       if (userEmail) {
         const me = list.find((m) => {
@@ -69,9 +65,6 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         });
         const role = (me?.role || '').toUpperCase();
         setCurrentUserRole(role);
-        // console.log('Current user role:', role, 'User email:', userEmail, 'Found member:', me);
-      } else {
-        // console.warn('User email not found for role check');
       }
     } catch (e) {
       const errorMsg = e.message || 'Failed to fetch members';
@@ -83,19 +76,15 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
     } finally {
       setLoading(false);
     }
-  };
+  }, [communityId, isLocalGroup, user?.email]);
 
   useEffect(() => {
     fetchMembers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [communityId, isLocalGroup, user?.email]);
+  }, [fetchMembers]);
 
-  const handleRemoveMember = async (member) => {
-    console.log('handleRemoveMember called with:', member);
+  const handleRemoveMember = useCallback(async (member) => {
     const userEmail = member?.email || member?.username;
     const requesterEmail = user?.email || getStoredUserEmail();
-
-    console.log('Remove member params:', { userEmail, requesterEmail, communityId });
 
     if (!userEmail || !requesterEmail || !communityId) {
       console.error('Missing required info:', { userEmail, requesterEmail, communityId });
@@ -109,13 +98,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
     setRemovingMember((prev) => ({ ...prev, [memberId]: true }));
 
     try {
-      console.log('Calling removeCommunityMember API...', {
-        url: `community/removeMember`,
-        payload: { communityId, userEmail, requesterEmail }
-      });
-      
-      const response = await removeCommunityMember(communityId, userEmail, requesterEmail);
-      console.log('Member removed successfully:', response);
+      await removeCommunityMember(communityId, userEmail, requesterEmail);
 
       setMembers((prev) => {
         return prev.filter((m) => {
@@ -133,9 +116,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         }
       }));
     } catch (e) {
-      console.error('Failed to remove member - Full error:', e);
-      console.error('Error message:', e.message);
-      console.error('Error stack:', e.stack);
+      console.error('Failed to remove member:', e);
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: e.message || 'Failed to remove member', type: 'error' }
       }));
@@ -146,30 +127,29 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
         return updated;
       });
     }
-  };
+  }, [communityId, user?.email]);
 
-  const openConfirm = (member) => {
+  const openConfirm = useCallback((member) => {
     setConfirmTarget(member);
     setConfirmOpen(true);
-  };
+  }, []);
 
-  const closeConfirm = () => {
+  const closeConfirm = useCallback(() => {
     setConfirmOpen(false);
     setConfirmTarget(null);
-  };
+  }, []);
 
-  const confirmRemove = async () => {
+  const confirmRemove = useCallback(async () => {
     if (!confirmTarget) return;
     const target = confirmTarget;
     closeConfirm();
     await handleRemoveMember(target);
-  };
+  }, [confirmTarget, closeConfirm, handleRemoveMember]);
 
   const isAdmin = currentUserRole === 'ADMIN';
-  const currentUserEmail = user?.email || getStoredUserEmail();
+  const currentUserEmail = useMemo(() => user?.email || getStoredUserEmail(), [user?.email]);
 
-  // Shared content component
-  const PanelContent = () => (
+  const renderPanelContent = () => (
     <>
       <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
         <img src="/icons/user-friends.svg" alt="Members" className="w-5 h-5" />
@@ -200,12 +180,10 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
             const displayName = m.username || m.name || m.email || `member-${idx+1}`;
             const role = (m.role || '').toString();
             const memberRole = (m.role || '').toUpperCase();
-            // Use avatarPreviewUrl from API response, fallback to other fields
             const avatarUrl = m.avatarPreviewUrl || m.avatarUrl || m.avatar || '/avatars/avatar-1.png';
             const memberEmail = m.email || m.username || '';
             const isCurrentUser = memberEmail && currentUserEmail && memberEmail.toLowerCase() === currentUserEmail.toLowerCase();
             const isMemberAdmin = memberRole === 'ADMIN';
-            // Only show remove button to admins, and only for non-admin members (not themselves or other admins)
             const canRemove = isAdmin && !isCurrentUser && !isMemberAdmin;
             const memberId = m.memberId || m.id || memberEmail;
             const isRemoving = removingMember[memberId];
@@ -271,7 +249,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
                 </svg>
               </button>
               
-              <PanelContent />
+              {renderPanelContent()}
             </div>
           </div>
         </>
@@ -279,7 +257,7 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
 
       {/* Desktop: In normal layout (1024px and above) */}
       <div className="hidden lg:block w-80 bg-white h-full overflow-y-auto flex-shrink-0 rounded-xl p-6 border border-gray-500">
-        <PanelContent />
+        {renderPanelContent()}
       </div>
 
       {/* Confirm Remove Modal */}
@@ -306,4 +284,4 @@ const CommunityRightPanel = ({ community, isLocalGroup = false, onClose = null }
   );
 };
 
-export default CommunityRightPanel;
+export default React.memo(CommunityRightPanel);

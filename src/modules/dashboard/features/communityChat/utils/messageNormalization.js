@@ -62,16 +62,29 @@ export const sortCommunityMessages = (messages = []) => (
   [...messages].sort((left, right) => getMessageTime(left) - getMessageTime(right))
 );
 
-export const isImageFile = ({ contentType = '', fileName = '' } = {}) => {
+export const isImageFile = ({ contentType = '', fileName = '', fileKey = '', fileUrl = '' } = {}) => {
   if (String(contentType).toLowerCase().startsWith('image/')) return true;
 
-  const extension = String(fileName).toLowerCase().split('.').pop();
+  const targetStr = String(fileName || fileKey || fileUrl).toLowerCase();
+  if (targetStr.startsWith('data:image/')) return true;
+
+  const cleanStr = targetStr.split('?')[0].split('#')[0];
+  const extension = cleanStr.split('.').pop();
   return IMAGE_EXTENSIONS.has(extension);
 };
 
 export const isCommunityFileMessage = (message = {}) => (
   String(message.type || '').toUpperCase() === 'FILE'
-  || Boolean(message.fileKey || message.file_key || message.fileUrl || message.file_url)
+  || Boolean(
+    message.fileKey
+    || message.file_key
+    || message.fileUrl
+    || message.file_url
+    || message.s3Url
+    || message.s3_url
+    || message.s3Key
+    || message.s3_key
+  )
 );
 
 export const resolveCommunityDisplayName = (
@@ -111,17 +124,21 @@ export const normalizeCommunityMessage = (message = {}, context = {}) => {
   };
 
   if (isCommunityFileMessage(message)) {
-    const fileKey = message.fileKey || message.file_key || '';
-    const fileUrl = message.fileUrl || message.file_url || '';
+    const fileKey = message.fileKey || message.file_key || message.s3Key || message.s3_key || '';
+    const fileUrl = message.fileUrl || message.file_url || message.s3Url || message.s3_url || message.url || '';
     const fileIdentifier = fileKey || fileUrl;
-    const fileName = message.fileName || message.file_name || message.text || 'file';
+    const fileName = message.fileName || message.file_name || message.text || message.message || message.content || 'file';
     const contentType = message.contentType || message.content_type || '';
-    const isImage = isImageFile({ contentType, fileName });
+    const isImage = isImageFile({ contentType, fileName, fileKey, fileUrl });
 
     return {
       ...sharedFields,
       text: fileName,
-      images: isImage && fileIdentifier ? [fileIdentifier] : [],
+      images: isImage && fileIdentifier
+        ? [fileIdentifier]
+        : Array.isArray(message.images)
+          ? message.images
+          : [],
       fileKey: fileKey || null,
       fileUrl: fileUrl || null,
       fileName,

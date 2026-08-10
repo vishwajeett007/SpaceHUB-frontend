@@ -1,10 +1,97 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { uploadFileAndGetUrl, getPresignedDownloadUrl } from '../../../../shared/services/API';
 
 const systemVariantStyles = {
   'chat-join': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   'voice-join': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+};
+
+const contentTypeMap = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'svg': 'image/svg+xml',
+  'bmp': 'image/bmp',
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'xls': 'application/vnd.ms-excel',
+  'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'ppt': 'application/vnd.ms-powerpoint',
+  'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'xml': 'application/xml',
+  'zip': 'application/zip',
+  'rar': 'application/x-rar-compressed',
+  '7z': 'application/x-7z-compressed',
+  'txt': 'text/plain',
+  'csv': 'text/csv',
+  'rtf': 'application/rtf',
+  'odt': 'application/vnd.oasis.opendocument.text',
+  'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+  'odp': 'application/vnd.oasis.opendocument.presentation'
+};
+
+const formatTime = (date) => {
+  const d = new Date(date);
+  const hours = d.getHours();
+  const minutes = d.getMinutes();
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  return `${displayHours}:${displayMinutes}${ampm}`;
+};
+
+const formatDateChip = (date) => {
+  const d = new Date(date);
+  const today = new Date();
+  const isToday = d.toDateString() === today.toDateString();
+  if (isToday) return 'Today';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+};
+
+const shouldClampMessage = (text) => {
+  if (!text) return false;
+  const textStr = String(text);
+  if (!textStr) return false;
+  const approxLineBreaks = (textStr.match(/\n/g) || []).length + 1;
+  if (approxLineBreaks > 15) return true;
+  return textStr.length > 900;
+};
+
+const downloadFile = async (url, filename) => {
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Fetch failed');
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = filename || 'download';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch {
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename || 'download';
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+    } catch {
+      window.open(url, '_blank');
+    }
+  }
 };
 
 const ChatRoom = ({
@@ -24,6 +111,7 @@ const ChatRoom = ({
   const [attachments, setAttachments] = useState([]); 
   const [expandedMessageIds, setExpandedMessageIds] = useState({});
   const [presignedUrls, setPresignedUrls] = useState({}); // Cache for presigned URLs
+  const [enlargedImage, setEnlargedImage] = useState(null);
 
   const fileInputRef = useRef(null);
   const messageInputRef = useRef(null);
@@ -31,22 +119,49 @@ const ChatRoom = ({
 
   const emojis = useMemo(() => ['😊', '😂', '🎉', '🔥', '👍', '❤️'], []);
 
+  const handleFileDownload = useCallback(async (fileUrl, fileKey, fileName, contentType) => {
+    const targetKey = fileKey || fileUrl;
+    let targetUrl = (fileUrl && (fileUrl.startsWith('http') || fileUrl.startsWith('data:')))
+      ? fileUrl
+      : (fileKey && (fileKey.startsWith('http') || fileKey.startsWith('data:')))
+        ? fileKey
+        : presignedUrls[targetKey];
+
+    if (!targetUrl && targetKey) {
+      try {
+        const ext = (fileName || targetKey).split('.').pop()?.toLowerCase();
+        const cType = contentType || contentTypeMap[ext] || 'application/octet-stream';
+        targetUrl = await getPresignedDownloadUrl(targetKey, cType);
+        if (targetUrl) {
+          setPresignedUrls((prev) => ({ ...prev, [targetKey]: targetUrl }));
+        }
+      } catch (err) {
+        console.error('Failed to resolve presigned download URL dynamically:', err);
+      }
+    }
+
+    if (targetUrl) {
+      await downloadFile(targetUrl, fileName || 'download');
+    } else {
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { message: 'Download URL unavailable. Please try again.', type: 'error' }
+      }));
+    }
+  }, [presignedUrls]);
+
   // Fetch presigned URLs for fileKeys
   useEffect(() => {
     const fetchPresignedUrls = async () => {
       const fileKeysToFetch = new Set();
       
       messages.forEach((msg) => {
-        // Check images
         if (Array.isArray(msg.images)) {
           msg.images.forEach((img) => {
-            // If it's a fileKey (not a full URL), add to fetch list
             if (img && !img.startsWith('http') && !presignedUrls[img]) {
               fileKeysToFetch.add(img);
             }
           });
         }
-        // Check fileUrl/fileKey for non-image files
         if (msg.isFile && msg.fileKey && !msg.fileKey.startsWith('http') && !presignedUrls[msg.fileKey]) {
           fileKeysToFetch.add(msg.fileKey);
         }
@@ -59,34 +174,7 @@ const ChatRoom = ({
 
       const fetchPromises = Array.from(fileKeysToFetch).map(async (fileKey) => {
         try {
-          // Determine content type from file extension
           const extension = fileKey.split('.').pop()?.toLowerCase();
-          const contentTypeMap = {
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
-            'webp': 'image/webp',
-            'svg': 'image/svg+xml',
-            'bmp': 'image/bmp',
-            'pdf': 'application/pdf',
-            'doc': 'application/msword',
-            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls': 'application/vnd.ms-excel',
-            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'ppt': 'application/vnd.ms-powerpoint',
-            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'xml': 'application/xml',
-            'zip': 'application/zip',
-            'rar': 'application/x-rar-compressed',
-            '7z': 'application/x-7z-compressed',
-            'txt': 'text/plain',
-            'csv': 'text/csv',
-            'rtf': 'application/rtf',
-            'odt': 'application/vnd.oasis.opendocument.text',
-            'ods': 'application/vnd.oasis.opendocument.spreadsheet',
-            'odp': 'application/vnd.oasis.opendocument.presentation'
-          };
           const contentType = contentTypeMap[extension] || 'application/octet-stream';
           
           const url = await getPresignedDownloadUrl(fileKey, contentType);
@@ -107,19 +195,18 @@ const ChatRoom = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  // Auto-focus message input when component mounts or title changes
   useEffect(() => {
     if (messageInputRef.current) {
       messageInputRef.current.focus();
     }
   }, [title]);
 
-  const onPickFiles = () => fileInputRef.current?.click();
-  const onFilesSelected = async (e) => {
+  const onPickFiles = useCallback(() => fileInputRef.current?.click(), []);
+
+  const onFilesSelected = useCallback(async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     
-    // Create attachment objects with preview URLs
     const newAttachments = files.map((file) => ({
       file,
       url: URL.createObjectURL(file),
@@ -137,7 +224,6 @@ const ChatRoom = ({
       try {
         const uploadResult = await uploadFileAndGetUrl(attachment.file);
         
-        // Update attachment with fileKey and mark as not uploading
         setAttachments((prev) => {
           const updated = [...prev];
           const attachmentIndex = prev.findIndex(
@@ -161,60 +247,26 @@ const ChatRoom = ({
           detail: { message: `Failed to upload ${attachment.fileName}: ${error.message}`, type: 'error' }
         }));
         
-        // Remove failed attachment
         setAttachments((prev) => prev.filter((att) => att.file !== attachment.file));
       }
     });
-  };
+  }, []);
 
-  const onEmojiClick = (e) => {
+  const onEmojiClick = useCallback((e) => {
     setMessage((prev) => prev + e);
     setShowEmoji(false);
-  };
+  }, []);
 
-  const formatTime = (date) => {
-    const d = new Date(date);
-    const hours = d.getHours();
-    const minutes = d.getMinutes();
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    const displayHours = hours % 12 || 12;
-    const displayMinutes = minutes.toString().padStart(2, '0');
-    return `${displayHours}:${displayMinutes}${ampm}`;
-  };
-
-  const formatDateChip = (date) => {
-    const d = new Date(date);
-    const today = new Date();
-    const isToday = d.toDateString() === today.toDateString();
-    if (isToday) return 'Today';
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    return `${dd}-${mm}-${yyyy}`;
-  };
-
-  const shouldClampMessage = (text) => {
-    if (!text) return false;
-    // Ensure text is a string
-    const textStr = String(text);
-    if (!textStr) return false;
-    const approxLineBreaks = (textStr.match(/\n/g) || []).length + 1;
-    if (approxLineBreaks > 15) return true;
-    return textStr.length > 900;
-  };
-
-  const toggleExpand = (id) => {
+  const toggleExpand = useCallback((id) => {
     setExpandedMessageIds((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  }, []);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     const trimmed = message.trim();
-    // Filter out attachments that are still uploading or don't have fileKey
     const readyAttachments = attachments.filter(
       (att) => !att.uploading && (att.fileKey || att.fileUrl)
     );
     
-    // Allow sending if there's any message content (including emojis) or ready attachments
     if (!trimmed && readyAttachments.length === 0) {
       if (attachments.some(att => att.uploading)) {
         window.dispatchEvent(new CustomEvent('toast', {
@@ -228,10 +280,8 @@ const ChatRoom = ({
     const selfName = currentUser?.username || currentUser?.email || 'You';
     
     if (sendMessage) {
-      // For WebSocket-based direct chat, pass text and attachments with fileKey
       sendMessage(trimmed, readyAttachments);
     } else {
-      // For regular chat (community), send FILE type messages for files and regular message for text
       const newMsg = {
         id: `m-${Date.now()}`,
         author: selfName,
@@ -247,7 +297,7 @@ const ChatRoom = ({
             );
           return isImage;
         }).map((a) => a.fileKey || a.fileUrl),
-        attachments: readyAttachments // Pass attachments so onSend can send FILE type messages
+        attachments: readyAttachments
       };
       onSend?.(newMsg);
     }
@@ -268,7 +318,7 @@ const ChatRoom = ({
     } catch {
       // Scrolling is a non-critical enhancement.
     }
-  };
+  }, [message, attachments, currentUser, sendMessage, onSend]);
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -276,17 +326,18 @@ const ChatRoom = ({
     }
   }, [messages]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (onBack) {
       onBack();
     } else {
       navigate(-1);
     }
-  };
+  }, [onBack, navigate]);
 
   const displayName = chatUser?.name || title;
   const displayAvatar = chatUser?.avatar || '/avatars/avatar-1.png';
-  const getWsStatusDisplay = () => {
+
+  const wsStatusDisplay = useMemo(() => {
     const status = chatUser?.wsStatus || 'not-connected';
     switch (status) {
       case 'connected':
@@ -297,27 +348,7 @@ const ChatRoom = ({
       default:
         return { text: 'Not connected', textColor: 'text-orange-600', dotColor: 'bg-orange-500' };
     }
-  };
-  
-  const wsStatusDisplay = getWsStatusDisplay();
-
-  const downloadFile = (url, filename) => {
-    try {
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename || 'download';
-      anchor.target = '_blank';
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-    } catch {
-      try {
-        window.open(url, '_blank');
-      } catch {
-        // The browser may block both download mechanisms.
-      }
-    }
-  };
+  }, [chatUser?.wsStatus]);
 
   return (
     <div className="flex-1 min-w-0 bg-white h-full md:h-[calc(100vh-56px)] flex flex-col rounded-xl border border-gray-500 overflow-hidden md:bg-white">
@@ -416,139 +447,127 @@ const ChatRoom = ({
                     </div>
                   )}
                   <div className="flex gap-3 justify-start items-start">
-                    {/* Hide external avatar; we render avatar inside the message bubble */}
                     <div className="hidden" />
                     
                     {/* Message Bubble */}
-                    <div className="flex flex-col items-start flex-1 min-w-0">
-                      {/* Only show text bubble if it's not an image file (images are shown separately) */}
-                      {!(m.isFile && m.isImage) && (
-                        <div className={`rounded-sm border-l-4 px-4 py-3 w-full ${
-                          isSelf 
-                            ? 'bg-yellow-100/90 border border-yellow-300' 
-                            : 'bg-zinc-200 border border-gray-500'
-                        }`}>
-                          {/* Inline header with avatar, name and time inside the bubble */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <img
-                              src={m.avatar || '/avatars/avatar-1.png'}
-                              alt={m.author}
-                              className="w-7 h-7 rounded-full object-cover"
-                              onError={(e) => { e.target.src = '/avatars/avatar-1.png'; }}
-                            />
-                            <span className="font-semibold text-gray-800 text-sm">{m.author}</span>
-                            <span className="text-xs text-gray-500">{formatTime(m.createdAt)}</span>
-                          </div>
+                    <div className="flex flex-col items-start flex-1 min-w-0 w-full">
+                      <div className={`rounded-sm border-l-4 px-4 py-3 w-full ${
+                        isSelf 
+                          ? 'bg-yellow-100/90 border border-yellow-300 border-l-yellow-400' 
+                          : 'bg-zinc-200 border border-gray-400 border-l-gray-600'
+                      }`}>
+                        {/* Author Header */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <img
+                            src={m.avatar || '/avatars/avatar-1.png'}
+                            alt={m.author || 'User'}
+                            className="w-7 h-7 rounded-full object-cover"
+                            onError={(e) => { e.target.src = '/avatars/avatar-1.png'; }}
+                          />
+                          <span className="font-semibold text-gray-800 text-sm">{m.author || 'User'}</span>
+                          <span className="text-xs text-gray-500">{formatTime(m.createdAt)}</span>
+                        </div>
+
+                        {/* Text Message Content */}
+                        {Boolean(m.text && (!m.isFile || (m.text !== m.fileName && m.text !== 'file'))) && (
                           <div 
-                            className="whitespace-pre-wrap break-words text-sm text-gray-800 text-left"
+                            className="whitespace-pre-wrap break-words text-sm text-gray-800 text-left mb-2"
                             style={
                               shouldClampMessage(m.text) && !expandedMessageIds[m.id]
-                                ? {
-                                    maxHeight: '22.5rem',
-                                    overflow: 'hidden',
-                                  }
+                                ? { maxHeight: '22.5rem', overflow: 'hidden' }
                                 : {}
                             }
                           >
                             {typeof m.text === 'string' ? m.text : (m.text ? String(m.text) : '')}
                           </div>
-                          {shouldClampMessage(m.text) && (
-                            <button
-                              onClick={() => toggleExpand(m.id)}
-                              className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              {expandedMessageIds[m.id] ? 'Show less' : 'Show more'}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Images with inline header */}
-                      {Array.isArray(m.images) && m.images.length > 0 && (
-                        <div className="mt-2 w-full">
-                          <div className={`rounded-sm border-l-4 px-4 py-2 w-full ${
-                            isSelf
-                              ? 'bg-yellow-50 border-yellow-400 border border-yellow-300'
-                              : 'bg-gray-100 border-black/70 border border-gray-300'
-                          }`}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <img
-                                src={m.avatar || '/avatars/avatar-1.png'}
-                                alt={m.author}
-                                className="w-7 h-7 rounded-full object-cover"
-                                onError={(e) => { e.target.src = '/avatars/avatar-1.png'; }}
-                              />
-                              <span className="font-semibold text-gray-800 text-sm">{m.author}</span>
-                              <span className="text-xs text-gray-500">{formatTime(m.createdAt)}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 max-w-full">
-                          {m.images.map((img, i) => {
-                            // Get presigned URL if img is a fileKey
-                            const imageUrl = img.startsWith('http') ? img : (presignedUrls[img] || img);
-                            const downloadUrl = img.startsWith('http') ? img : (presignedUrls[img] || null);
-                            
-                            return (
-                              <div key={i} className="rounded-lg overflow-hidden bg-gray-200 relative group">
-                                <img src={imageUrl} alt="attachment" className="w-full h-auto object-cover" onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }} />
-                                {downloadUrl && (
+                        )}
+                        {shouldClampMessage(m.text) && (
+                          <button
+                            onClick={() => toggleExpand(m.id)}
+                            className="mt-1 mb-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            {expandedMessageIds[m.id] ? 'Show less' : 'Show more'}
+                          </button>
+                        )}
+
+                        {/* Image Previews */}
+                        {Array.isArray(m.images) && m.images.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-2 max-w-full">
+                            {m.images.map((img, i) => {
+                              const imageUrl = (img && (img.startsWith('http') || img.startsWith('data:')))
+                                ? img
+                                : (presignedUrls[img] || (m.fileUrl && m.fileUrl.startsWith('http') ? m.fileUrl : img));
+
+                              return (
+                                <div key={i} className="rounded-lg overflow-hidden bg-gray-200/80 border border-gray-300 relative group max-w-md">
+                                  <img
+                                    src={imageUrl}
+                                    alt={m.fileName || 'attachment'}
+                                    onClick={() => setEnlargedImage({ url: imageUrl, fileName: m.fileName || `image-${i + 1}` })}
+                                    className="w-full h-auto object-cover max-h-80 rounded-md cursor-zoom-in hover:opacity-95 transition-opacity"
+                                    title="Click to enlarge"
+                                    onError={(e) => {
+                                      e.target.style.opacity = '0.4';
+                                    }}
+                                  />
                                   <button
-                                    onClick={() => downloadFile(downloadUrl, `image-${i + 1}`)}
-                                    className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="Download"
+                                    onClick={() => handleFileDownload(
+                                      imageUrl,
+                                      img,
+                                      m.fileName || `image-${i + 1}`,
+                                      m.contentType || 'image/png'
+                                    )}
+                                    className="absolute top-2 right-2 bg-black/85 hover:bg-black text-white rounded-md px-3 py-1.5 text-xs font-semibold shadow-md flex items-center gap-1.5 cursor-pointer z-10"
+                                    title="Download Image"
                                   >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M5 20h14a2 2 0 002-2v-1M7 20a2 2 0 01-2-2v-1" />
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                     </svg>
+                                    <span>Download</span>
                                   </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                            </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* File download link for non-image files with inline header */}
-                      {m.isFile && !m.isImage && (m.fileKey || m.fileUrl) && (() => {
-                        const fileKey = m.fileKey || m.fileUrl;
-                        const downloadUrl = fileKey.startsWith('http') ? fileKey : (presignedUrls[fileKey] || null);
-                        
-                        if (!downloadUrl) return null; // Wait for presigned URL to load
-                        
-                        return (
-                          <div className="mt-2 w-full">
-                            <div className={`rounded-sm border-l-4 px-4 py-3 w-full ${
-                              isSelf 
-                                ? 'bg-yellow-100/90 border-yellow-400 border border-yellow-300' 
-                                : 'bg-gray-200 border-black/70 border border-gray-300'
-                            }`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <img
-                                  src={m.avatar || '/avatars/avatar-1.png'}
-                                  alt={m.author}
-                                  className="w-7 h-7 rounded-full object-cover"
-                                  onError={(e) => { e.target.src = '/avatars/avatar-1.png'; }}
-                                />
-                                <span className="font-semibold text-gray-800 text-sm">{m.author}</span>
-                                <span className="text-xs text-gray-500">{formatTime(m.createdAt)}</span>
-                              </div>
-                              <button
-                                onClick={() => downloadFile(downloadUrl, m.fileName || 'file')}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700 transition-colors"
-                                title="Download"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        )}
+
+                        {/* Shared File Attachment Card & Download Button (for non-images or files without image preview array) */}
+                        {(!Array.isArray(m.images) || m.images.length === 0) && (m.isFile || m.fileKey || m.fileUrl || String(m.type || '').toUpperCase() === 'FILE') && (
+                          <div className="mt-2 bg-white/90 rounded-lg p-3 flex items-center justify-between gap-3 border border-gray-300 shadow-sm">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                 </svg>
-                                <span className="text-sm font-medium">{m.fileName || 'Download file'}</span>
-                              </button>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-semibold text-gray-900 truncate" title={m.fileName || m.text || 'Shared File'}>
+                                  {m.fileName || m.text || 'Shared File'}
+                                </div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wider font-medium">
+                                  {m.contentType ? (m.contentType.split('/')[1] || m.contentType) : (m.fileName?.split('.').pop() || 'FILE')}
+                                </div>
+                              </div>
                             </div>
+                            
+                            <button
+                              onClick={() => handleFileDownload(
+                                m.fileUrl || (m.images && m.images[0]),
+                                m.fileKey,
+                                m.fileName || m.text || 'file',
+                                m.contentType
+                              )}
+                              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors flex-shrink-0 shadow-sm cursor-pointer"
+                              title="Download File"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              <span>Download</span>
+                            </button>
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </div>
                     
                   </div>
@@ -570,7 +589,7 @@ const ChatRoom = ({
         )}
       </div>
 
-      {/* Composer - Mobile Design */}
+      {/* Composer */}
       <div className="px-2 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 bg-black/90">
         {attachments.length > 0 && (
           <div className="mb-2 grid grid-cols-3 gap-2">
@@ -587,7 +606,6 @@ const ChatRoom = ({
                   onClick={() => {
                     setAttachments((prev) => {
                       const updated = prev.filter((_, i) => i !== idx);
-                      // Revoke object URL when removing
                       try {
                         URL.revokeObjectURL(a.url);
                       } catch {
@@ -617,8 +635,6 @@ const ChatRoom = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
-          
-
           
           {/* Attachment Button */}
           <button
@@ -684,8 +700,54 @@ const ChatRoom = ({
           )}
         </div>
       </div>
+
+      {/* Image Enlargement Modal Lightbox */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fadeIn"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <div
+            className="relative max-w-5xl max-h-[90vh] flex flex-col items-center justify-center bg-transparent rounded-lg p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Action Bar */}
+            <div className="w-full flex items-center justify-between gap-4 mb-3 text-white">
+              <div className="text-sm font-semibold truncate max-w-md">
+                {enlargedImage.fileName || 'Image Preview'}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleFileDownload(enlargedImage.url, null, enlargedImage.fileName || 'image', 'image/png')}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold shadow-md flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download</span>
+                </button>
+
+                <button
+                  onClick={() => setEnlargedImage(null)}
+                  className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Enlarged Image */}
+            <img
+              src={enlargedImage.url}
+              alt={enlargedImage.fileName || 'Enlarged Preview'}
+              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl border border-white/10 select-none"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ChatRoom;
+export default React.memo(ChatRoom);

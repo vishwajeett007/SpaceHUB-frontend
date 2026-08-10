@@ -106,6 +106,17 @@ const DirectMessagePage = () => {
             ? sortedMessages[sortedMessages.length - 1] 
             : null;
           
+          let lastMsgText = '';
+          if (lastMessage) {
+            const isFileMsg = lastMessage.type === 'FILE' || lastMessage.isFile || Boolean(lastMessage.fileKey || lastMessage.fileUrl);
+            if (isFileMsg) {
+              const isImg = lastMessage.contentType?.startsWith('image/') || lastMessage.isImage;
+              lastMsgText = isImg ? '📷 Photo' : `📁 ${lastMessage.fileName || lastMessage.text || 'Attached file'}`;
+            } else {
+              lastMsgText = lastMessage.content || lastMessage.message || lastMessage.text || '';
+            }
+          }
+          
           const unreadCount = sortedMessages.filter(msg => {
             const msgSender = msg.senderEmail || msg.email || '';
             return msgSender.toLowerCase() !== userEmail.toLowerCase();
@@ -113,7 +124,7 @@ const DirectMessagePage = () => {
           
           return {
             ...friend,
-            lastMessage: lastMessage?.content || lastMessage?.message || '',
+            lastMessage: lastMsgText,
             lastMessageTime: lastMessage?.timestamp || lastMessage?.createdAt || null,
             unreadCount: unreadCount > 0 ? unreadCount : 0
           };

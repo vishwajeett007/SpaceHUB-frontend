@@ -34,17 +34,21 @@ export const getMessageSender = (message = {}) => (
 );
 
 export const getMessageReceiver = (message = {}) => (
-  message.receiverEmail || message.receiver || message.to || ''
+  message.receiverEmail || message.receiver || message.friendEmail || message.to || ''
 );
 
 export const sortMessagesByTime = (messages = []) => (
   [...messages].sort((left, right) => getComparableTime(left) - getComparableTime(right))
 );
 
-export const isImageFile = ({ contentType = '', fileName = '' } = {}) => {
+export const isImageFile = ({ contentType = '', fileName = '', fileKey = '', fileUrl = '' } = {}) => {
   if (String(contentType).toLowerCase().startsWith('image/')) return true;
 
-  const extension = String(fileName).toLowerCase().split('.').pop();
+  const targetStr = String(fileName || fileKey || fileUrl).toLowerCase();
+  if (targetStr.startsWith('data:image/')) return true;
+
+  const cleanStr = targetStr.split('?')[0].split('#')[0];
+  const extension = cleanStr.split('.').pop();
   return IMAGE_EXTENSIONS.has(extension);
 };
 
@@ -54,15 +58,24 @@ export const isIgnoredDirectMessage = (message = {}) => (
 );
 
 export const isMessageInConversation = (message, currentUserEmail, friendEmail) => {
+  if (!message || typeof message !== 'object') return false;
+
   const sender = normalizeEmail(getMessageSender(message));
   const receiver = normalizeEmail(getMessageReceiver(message));
   const currentUser = normalizeEmail(currentUserEmail);
   const friend = normalizeEmail(friendEmail);
 
-  return (
-    (sender === currentUser && receiver === friend)
-    || (sender === friend && receiver === currentUser)
-  );
+  if (sender && receiver) {
+    return (
+      (sender === currentUser && receiver === friend)
+      || (sender === friend && receiver === currentUser)
+    );
+  }
+
+  if (sender && (sender === friend || sender === currentUser)) return true;
+  if (receiver && (receiver === friend || receiver === currentUser)) return true;
+
+  return false;
 };
 
 const getTextContent = (message = {}) => {
@@ -106,21 +119,31 @@ export const normalizeDirectMessage = (message = {}, context = {}) => {
     isSelf,
   };
 
-  const fileKey = message.fileKey || message.file_key || '';
-  const fileUrl = message.fileUrl || message.file_url || '';
+  const fileKey = message.fileKey || message.file_key || message.s3Key || message.s3_key || '';
+  const fileUrl = message.fileUrl || message.file_url || message.s3Url || message.s3_url || message.url || '';
   const isFile = String(message.type || '').toUpperCase() === 'FILE' || Boolean(fileKey || fileUrl);
 
   if (isFile) {
     const fileName = message.fileName || message.file_name || getTextContent(message) || 'file';
     const contentType = message.contentType || message.content_type || '';
-    const isImage = isImageFile({ contentType, fileName });
+    const isImage = isImageFile({ contentType, fileName, fileKey, fileUrl });
+
+    // Always prioritize valid HTTP / Cloudinary URLs over raw fileKeys or filenames
+    const validUrl = [fileUrl, fileKey, message.url, message.image].find(
+      (u) => typeof u === 'string' && (u.startsWith('http') || u.startsWith('data:'))
+    );
+    const fileIdentifier = validUrl || fileUrl || fileKey;
 
     return {
       ...sharedFields,
       text: fileName,
-      images: isImage && (fileKey || fileUrl) ? [fileKey || fileUrl] : [],
+      images: isImage && fileIdentifier
+        ? [fileIdentifier]
+        : Array.isArray(message.images) && message.images.length > 0
+          ? message.images
+          : [],
       fileKey: fileKey || null,
-      fileUrl: fileUrl || null,
+      fileUrl: validUrl || fileUrl || null,
       fileName,
       contentType,
       isFile: true,

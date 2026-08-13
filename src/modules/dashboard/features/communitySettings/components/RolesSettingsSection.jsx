@@ -136,7 +136,7 @@ const MemberSearch = ({ mobile }) => {
   );
 };
 
-const RoleMenu = ({ member, targetKey, memberId, role, mobile }) => {
+const RoleMenu = ({ targetKey, memberId, role, mobile }) => {
   const { roles } = useCommunitySettings();
   const isAdmin = role === 'ADMIN';
   const isWorkspaceOwner = role === 'WORKSPACE_OWNER' || role === 'OWNER';
@@ -226,7 +226,7 @@ const MemberRow = ({ member, mobile }) => {
         )}
       </div>
       {!isCurrentUser && (
-        <RoleMenu member={member} targetKey={targetKey} memberId={memberId} role={role} mobile={mobile} />
+        <RoleMenu targetKey={targetKey} memberId={memberId} role={role} mobile={mobile} />
       )}
     </div>
   );

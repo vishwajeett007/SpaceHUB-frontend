@@ -11,16 +11,18 @@ import AuthSlides from '../components/AuthSlides';
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState('');
+  const storedResetIdentifier = sessionStorage.getItem('resetIdentifier') || '';
+  const storedOtpToken = sessionStorage.getItem('resetOtpToken') || '';
+  const [identifier, setIdentifier] = useState(storedResetIdentifier);
   const [otp, setOtp] = useState('');
   const [identifierError, setIdentifierError] = useState(false);
   const [otpError, setOtpError] = useState(false);
   const [invalidOtp, setInvalidOtp] = useState(false);
-  const [step, setStep] = useState('email');
-  const [forgotToken, setForgotToken] = useState('');
+  const [step, setStep] = useState(storedResetIdentifier && storedOtpToken ? 'otp' : 'email');
+  const [forgotToken, setForgotToken] = useState(storedOtpToken);
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const timerIntervalRef = useRef(null);
+  const requestInFlightRef = useRef(false);
 
   const hasEmoji = (value) => /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/u.test(value || '');
   const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && !hasEmoji(value);
@@ -30,34 +32,22 @@ const ForgotPasswordPage = () => {
   };
 
   useEffect(() => {
-    if (resendTimer > 0) {
-      timerIntervalRef.current = setInterval(() => {
-        setResendTimer((prev) => {
-          if (prev <= 1) {
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    }
+    if (resendTimer <= 0) return undefined;
 
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    };
+    const timeoutId = setTimeout(() => {
+      setResendTimer((previous) => Math.max(previous - 1, 0));
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
   }, [resendTimer]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (requestInFlightRef.current) return;
+
     if (step === 'email') {
-      const emailLike = isValidEmail(identifier);
+      const identifierToSend = identifier.trim().toLowerCase();
+      const emailLike = isValidEmail(identifierToSend);
       if (!emailLike) {
         setIdentifierError(true);
         if (isMobile()) {
@@ -65,82 +55,96 @@ const ForgotPasswordPage = () => {
         }
         return;
       }
-      const identifierToSend = identifier.trim();
       clearPasswordResetState();
+      requestInFlightRef.current = true;
       setLoading(true);
-      requestForgotPassword(identifierToSend)
-        .then((res) => {
-          const token = normalizeAuthToken(
-            res?.data?.tempToken || res?.data?.token || res?.tempToken || res?.token || res?.data
-          );
-          if (!token) {
-            throw new Error('The password-reset request did not return a temporary token.');
-          }
-          setIdentifier(identifierToSend);
-          setForgotToken(token);
-          showToast('OTP sent!', 'success');
-          setResendTimer(30);
-          setStep('otp');
-        })
-        .catch((err) => {
-          console.error('Failed to send OTP:', err.message);
-          const errorMessage = err.message || 'Failed to send OTP. Please try again.';
-          showToast(errorMessage, 'error');
-        })
-        .finally(() => setLoading(false));
+      try {
+        const response = await requestForgotPassword(identifierToSend);
+        const token = normalizeAuthToken(
+          response?.data?.tempToken || response?.data?.token || response?.tempToken || response?.token
+        );
+        if (!token) {
+          throw new Error('The password-reset request did not return a temporary token.');
+        }
+        setIdentifier(identifierToSend);
+        setForgotToken(token);
+        sessionStorage.setItem('resetIdentifier', identifierToSend);
+        sessionStorage.setItem('resetOtpToken', token);
+        showToast('OTP sent!', 'success');
+        setResendTimer(30);
+        setStep('otp');
+      } catch (err) {
+        console.error('Failed to send OTP:', err.message);
+        const errorMessage = err.message || 'Failed to send OTP. Please try again.';
+        showToast(errorMessage, 'error');
+      } finally {
+        requestInFlightRef.current = false;
+        setLoading(false);
+      }
     } else {
       if (!/^\d{6}$/.test(otp)) {
         setOtpError(true);
         return;
       }
       setOtpError(false);
+      requestInFlightRef.current = true;
       setLoading(true);
-      validateOtp({ identifier, otp })
-        .then((res) => {
-          const token = normalizeAuthToken(
-            res?.data?.accessToken || res?.accessToken || res?.data?.token || res?.token
-          );
-          if (!token) {
-            throw new Error('OTP verification did not return a password-reset token.');
-          }
+      try {
+        const response = await validateOtp({
+          identifier,
+          otp,
+          tempToken: forgotToken || sessionStorage.getItem('resetOtpToken') || '',
+        });
+        const token = normalizeAuthToken(
+          response?.data?.accessToken || response?.accessToken || response?.data?.token || response?.token
+        );
+        if (!token) {
+          throw new Error('OTP verification did not return a password-reset token.');
+        }
 
-          sessionStorage.setItem('resetIdentifier', identifier);
-          sessionStorage.setItem('resetEmail', identifier);
-          sessionStorage.setItem('resetAccessToken', token);
-          showToast('OTP verified successfully!', 'success');
-          navigate('/reset');
-        })
-        .catch((err) => {
-          console.error('Invalid OTP:', err.message);
-          const errorMessage = err.message || 'Invalid OTP. Please try again.';
-          if (err.message.includes('Invalid') || err.message.includes('invalid') || err.message.includes('OTP')) {
-            setInvalidOtp(true);
-          }
-          showToast(errorMessage, 'error');
-        })
-        .finally(() => setLoading(false));
+        sessionStorage.setItem('resetIdentifier', identifier);
+        sessionStorage.setItem('resetEmail', identifier);
+        sessionStorage.setItem('resetAccessToken', token);
+        sessionStorage.removeItem('resetOtpToken');
+        showToast('OTP verified successfully!', 'success');
+        navigate('/reset');
+      } catch (err) {
+        console.error('Invalid OTP:', err.message);
+        const errorMessage = err.message || 'Invalid OTP. Please try again.';
+        if (/invalid|otp/i.test(errorMessage)) {
+          setInvalidOtp(true);
+        }
+        showToast(errorMessage, 'error');
+      } finally {
+        requestInFlightRef.current = false;
+        setLoading(false);
+      }
     }
   };
 
-  const handleResendOtp = (e) => {
+  const handleResendOtp = async (e) => {
     e.preventDefault();
-    if (!forgotToken || resendTimer > 0) return;
+    if (!forgotToken || resendTimer > 0 || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
     setLoading(true);
-    resendForgotOtp(forgotToken)
-      .then(() => {
-        showToast('OTP resent successfully!', 'success');
-        setResendTimer(30);
-      })
-      .catch((err) => {
-        console.error('Failed to resend OTP:', err.message);
-        const errorMessage = err.message || 'Failed to resend OTP. Please try again.';
-        showToast(errorMessage, 'error');
-      })
-      .finally(() => setLoading(false));
+    try {
+      await resendForgotOtp(forgotToken);
+      showToast('OTP resent successfully!', 'success');
+      setResendTimer(30);
+    } catch (err) {
+      console.error('Failed to resend OTP:', err.message);
+      const errorMessage = err.message || 'Failed to resend OTP. Please try again.';
+      showToast(errorMessage, 'error');
+    } finally {
+      requestInFlightRef.current = false;
+      setLoading(false);
+    }
   };
 
   const handleBackToEmail = (e) => {
     e.preventDefault();
+    clearPasswordResetState();
+    setForgotToken('');
     setStep('email');
     setOtp('');
     setInvalidOtp(false);

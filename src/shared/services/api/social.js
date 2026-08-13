@@ -42,6 +42,7 @@ export async function cancelFriendRequest(userEmail, friendIdentifier) {
 export async function getFriendsList() {
   const response = await authenticatedFetch(`${BASE_URL}friends/list`, {
     method: 'POST',
+    dedupe: true,
     headers: {
       'Content-Type': 'application/json'
     },

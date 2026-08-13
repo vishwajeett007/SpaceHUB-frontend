@@ -111,6 +111,7 @@ export async function updateProfile({ currentPassword, newPassword, firstName, l
 export async function getPresignedDownloadUrl(file, contentType = 'image/png') {
   const response = await authenticatedFetch(`${BASE_URL}files/presigned/download`, {
     method: 'POST',
+    dedupe: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ file, contentType })
   });

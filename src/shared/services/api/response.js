@@ -29,11 +29,17 @@ export async function handleJsonResponse(
     if (response.status === 429 && notifyRateLimit) {
       dispatchRateLimitToast();
       const message = (data && (data.message || data.error)) || RATE_LIMIT_ERROR_MESSAGE;
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
 
     const message = (data && (data.message || data.error)) || `HTTP ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return data;

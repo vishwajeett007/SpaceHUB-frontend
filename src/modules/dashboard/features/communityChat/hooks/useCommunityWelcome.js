@@ -45,7 +45,7 @@ export const useCommunityWelcome = ({ communityId, isLocalGroup, userEmail }) =>
     try {
       if (storageKey) localStorage.setItem(storageKey, '1');
     } catch {
-
+      // The modal can still close when browser storage is unavailable.
     }
   }, [storageKey]);
 

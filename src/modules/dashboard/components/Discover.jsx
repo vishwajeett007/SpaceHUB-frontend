@@ -22,6 +22,20 @@ const safeUrl = (rawUrl) => {
   return `${BASE_URL}${rawUrl}`;
 };
 
+const getCurrentUserEmail = () => {
+  try {
+    const rawUser = sessionStorage.getItem('userData');
+    const user = rawUser ? JSON.parse(rawUser) : null;
+    return user?.email
+      || user?.userEmail
+      || sessionStorage.getItem('lastEmail')
+      || sessionStorage.getItem('lastIdentifier')
+      || '';
+  } catch {
+    return sessionStorage.getItem('lastEmail') || sessionStorage.getItem('lastIdentifier') || '';
+  }
+};
+
 const CommunityCard = React.memo(({ community, onClick, isMobile = false }) => {
   const title = community.name || 'Untitled';
   const desc = community.description || '';
@@ -180,7 +194,6 @@ const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
   const [communities, setCommunities] = useState(() => {
@@ -196,9 +209,14 @@ const Discover = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(() => (
+    typeof window !== 'undefined' && window.innerWidth < 768
+  ));
   const scrollContainerRef = useRef(null);
   const debounceRef = useRef(null);
+  const nextPageRef = useRef(1);
+  const loadingMoreRef = useRef(false);
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     const handleResize = () => {
@@ -209,7 +227,10 @@ const Discover = () => {
   }, []);
 
   const fetchCommunities = useCallback(async (pageToFetch = 0, isAppend = false) => {
+    if (isAppend && loadingMoreRef.current) return;
+
     if (isAppend) {
+      loadingMoreRef.current = true;
       setLoadingMore(true);
     } else {
       setCommunities((prev) => {
@@ -220,8 +241,7 @@ const Discover = () => {
     setError('');
 
     try {
-      const userDataRaw = sessionStorage.getItem('userData');
-      const userEmail = userDataRaw ? (JSON.parse(userDataRaw)?.email || JSON.parse(userDataRaw)?.userEmail) : (sessionStorage.getItem('lastEmail') || sessionStorage.getItem('lastIdentifier') || '');
+      const userEmail = getCurrentUserEmail();
       const params = new URLSearchParams();
       params.set('page', String(pageToFetch));
       params.set('size', '20');
@@ -249,6 +269,7 @@ const Discover = () => {
           return [...prev, ...uniqueNew];
         });
       } else {
+        nextPageRef.current = 1;
         setCommunities(list);
         try {
           sessionStorage.setItem('cachedDiscoverCommunities', JSON.stringify(list));
@@ -256,13 +277,16 @@ const Discover = () => {
           console.warn('Failed to cache discover communities:', e);
         }
       }
+      return true;
     } catch (e) {
       const errorMsg = e.message || 'Failed to fetch communities';
       setError(errorMsg);
       window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: errorMsg, type: 'error' }
       }));
+      return false;
     } finally {
+      if (isAppend) loadingMoreRef.current = false;
       setLoading(false);
       setLoadingMore(false);
     }
@@ -276,10 +300,12 @@ const Discover = () => {
     if (!scrollContainerRef.current || loading || loadingMore || !hasMore || searchQuery.trim().length >= 3) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     if (scrollHeight - scrollTop - clientHeight < 150) {
-      setPage((prevPage) => {
-        const nextPage = prevPage + 1;
-        fetchCommunities(nextPage, true);
-        return nextPage;
+      const nextPage = nextPageRef.current;
+      nextPageRef.current += 1;
+      fetchCommunities(nextPage, true).then((succeeded) => {
+        if (!succeeded && nextPageRef.current === nextPage + 1) {
+          nextPageRef.current = nextPage;
+        }
       });
     }
   }, [loading, loadingMore, hasMore, searchQuery, fetchCommunities]);
@@ -290,21 +316,25 @@ const Discover = () => {
       clearTimeout(debounceRef.current);
     }
     if (query.length < 3) {
+      searchRequestIdRef.current += 1;
       setSearchResults([]);
       setSearching(false);
       setSearchError('');
       return;
     }
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       setSearchError('');
       try {
-        const userDataRaw = sessionStorage.getItem('userData');
-        const userEmail = userDataRaw ? (JSON.parse(userDataRaw)?.email || JSON.parse(userDataRaw)?.userEmail) : undefined;
+        const userEmail = getCurrentUserEmail() || undefined;
         const res = await searchCommunities({ query, requesterEmail: userEmail, page: 0, size: 20 });
         const list = res?.data?.communities || res?.communities || res?.data || [];
+        if (searchRequestIdRef.current !== requestId) return;
         setSearchResults(Array.isArray(list) ? list : []);
       } catch (e) {
+        if (searchRequestIdRef.current !== requestId) return;
         const errorMsg = e.message || 'Search failed';
         setSearchError(errorMsg);
         setSearchResults([]);
@@ -312,7 +342,9 @@ const Discover = () => {
           detail: { message: errorMsg, type: 'error' }
         }));
       } finally {
-        setSearching(false);
+        if (searchRequestIdRef.current === requestId) {
+          setSearching(false);
+        }
       }
     }, 600);
     return () => {

@@ -8,7 +8,7 @@ import {
   getVoiceRoomsList,
 } from '../../../../../shared/services/API';
 
-const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, selectedChannel, onSelectChannel, groupName, roomCode, roomId, isLocalGroup = false, canCreate = false, onDeleteChatroom = null, onDeleteVoiceRoom = null, currentUserRole = '', user = null, onSwitchToGeneral = null, onRefreshGroups = null }) => {
+const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, selectedChannel, onSelectChannel, groupName, roomCode, roomId, canCreate = false, onDeleteChatroom = null, onDeleteVoiceRoom = null, currentUserRole = '', user = null, onSwitchToGeneral = null, onRefreshGroups = null }) => {
 
   const isAnnouncement = (title || groupName || '').toLowerCase() === 'announcement';
   const filteredChannels = useMemo(() => {
@@ -51,7 +51,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       };
 
       fetchChatrooms();
-    } else if (open && isVoice && roomId && !isLocalGroup) {
+    } else if (open && isVoice && roomId) {
       const fetchVoiceRooms = async () => {
         setLoadingVoiceRooms(true);
         try {
@@ -76,7 +76,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       setFetchedVoiceRooms([]);
       setFetchedVoiceRoomsData([]);
     }
-  }, [open, isVoice, roomCode, roomId, isLocalGroup]);
+  }, [open, isVoice, roomCode, roomId]);
 
   useEffect(() => {
     if (!open) return;
@@ -235,8 +235,8 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
       try {
         const userData = readStoredUser() || {};
         requester = userData?.username || userData?.email?.split('@')[0] || '';
-      } catch {
-
+      } catch (storageError) {
+        console.warn('Failed to read the current user for voice-room deletion:', storageError);
       }
     }
 

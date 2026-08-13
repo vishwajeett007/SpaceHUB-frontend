@@ -70,9 +70,11 @@ export const clearPasswordResetState = () => {
   sessionStorage.removeItem('resetEmail');
   sessionStorage.removeItem('resetIdentifier');
   sessionStorage.removeItem('resetAccessToken');
+  sessionStorage.removeItem('resetOtpToken');
   localStorage.removeItem('resetEmail');
   localStorage.removeItem('resetIdentifier');
   localStorage.removeItem('resetAccessToken');
+  localStorage.removeItem('resetOtpToken');
 };
 
 export const clearStoredAuth = ({ includeResetState = false } = {}) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../../../shared/services/API';
 import { useAuth } from '../../../shared/contexts/AuthContextContext';
@@ -20,6 +20,7 @@ const ResetPasswordPage = () => {
   const [passwordError, setPasswordError] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
   const [loading, setLoading] = useState(false);
+  const requestInFlightRef = useRef(false);
 
   const validatePassword = (value) => {
     const passwordRegex = /^(?=.*[A-Z])(?=.*[#@!%&])(?=.*[0-9])(?!.*\s).{8,}$/;
@@ -40,40 +41,48 @@ const ResetPasswordPage = () => {
     setPasswordMismatch(password && value ? password !== value : false);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!passwordError && !passwordMismatch && password && confirmPassword) {
-      setLoading(true);
-      const identifier = sessionStorage.getItem('resetIdentifier') || sessionStorage.getItem('resetEmail') || '';
-      const tempToken = sessionStorage.getItem('resetAccessToken') || '';
-      resetPassword({ identifier, newPassword: password, tempToken })
-        .then((data) => {
-          const token = normalizeAuthToken(
-            data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token
-          );
-          const userObj = data?.user || data?.data?.user || { email: identifier };
-          try {
-            sessionStorage.setItem('lastIdentifier', identifier);
-            sessionStorage.setItem('lastEmail', identifier);
-          } catch (storageError) {
-            console.warn('Unable to remember the reset-password identifier:', storageError);
-          }
-          clearPasswordResetState();
-          showToast('Password reset successfully!', 'success');
+    if (requestInFlightRef.current) return;
 
-          if (token) {
-            login(userObj, token);
-            navigate('/dashboard', { replace: true });
-          } else {
-            navigate('/login', { replace: true });
-          }
-        })
-        .catch((err) => {
-          console.error('Reset failed:', err.message);
-          const errorMessage = err.message || 'Failed to reset password. Please try again.';
-          showToast(errorMessage, 'error');
-        })
-        .finally(() => setLoading(false));
+    const hasPasswordError = !validatePassword(password);
+    const hasMismatch = password !== confirmPassword;
+    setPasswordError(hasPasswordError);
+    setPasswordMismatch(hasMismatch);
+    if (hasPasswordError || hasMismatch || !password || !confirmPassword) return;
+
+    requestInFlightRef.current = true;
+    setLoading(true);
+    const identifier = sessionStorage.getItem('resetIdentifier') || sessionStorage.getItem('resetEmail') || '';
+    const tempToken = sessionStorage.getItem('resetAccessToken') || '';
+    try {
+      const data = await resetPassword({ identifier, newPassword: password, tempToken });
+      const token = normalizeAuthToken(
+        data?.accessToken || data?.token || data?.jwt || data?.data?.accessToken || data?.data?.token
+      );
+      const userObj = data?.user || data?.data?.user || { email: identifier };
+      try {
+        sessionStorage.setItem('lastIdentifier', identifier);
+        sessionStorage.setItem('lastEmail', identifier);
+      } catch (storageError) {
+        console.warn('Unable to remember the reset-password identifier:', storageError);
+      }
+      clearPasswordResetState();
+      showToast('Password reset successfully!', 'success');
+
+      if (token) {
+        login(userObj, token);
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/login', { replace: true });
+      }
+    } catch (err) {
+      console.error('Reset failed:', err.message);
+      const errorMessage = err.message || 'Failed to reset password. Please try again.';
+      showToast(errorMessage, 'error');
+    } finally {
+      requestInFlightRef.current = false;
+      setLoading(false);
     }
   };
 

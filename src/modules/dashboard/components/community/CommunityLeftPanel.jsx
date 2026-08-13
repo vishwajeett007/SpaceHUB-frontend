@@ -26,6 +26,7 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
   const { user } = useAuth();
   const title = community?.name || 'Community';
   const communityId = community?.id || community?.communityId || community?.community_id;
+  const communityImage = community?.imageUrl || community?.avatarUrl || '';
 
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -198,7 +199,7 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
 
   useEffect(() => {
     setImageError(false);
-  }, [community?.imageUrl]);
+  }, [communityImage]);
 
   useEffect(() => {
     const determineRole = async () => {
@@ -210,9 +211,14 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
             const cached = sessionStorage.getItem(`localGroupDetails:${communityId}`);
             const lg = cached ? JSON.parse(cached) : null;
             const creator = lg?.creatorEmail || lg?.createdByEmail || lg?.creator || '';
-            setCurrentUserRole(creator && creator.toLowerCase() === userEmail.toLowerCase() ? 'ADMIN' : 'MEMBER');
-          } catch {
-
+            const membership = lg?.members?.find((member) => (
+              member?.userId === user?.id || member?.user?.id === user?.id
+            ));
+            const isOwner = lg?.ownerId === user?.id
+              || (creator && creator.toLowerCase() === userEmail.toLowerCase());
+            setCurrentUserRole(isOwner ? 'OWNER' : String(membership?.role || 'MEMBER').toUpperCase());
+          } catch (storageError) {
+            console.warn('Failed to read cached local-group role:', storageError);
           }
         } else {
           const data = await getCommunityMembers(communityId);
@@ -246,12 +252,12 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
             sessionStorage.setItem(storageKey, JSON.stringify({ ...existingUsernames, ...usernameMap }));
           }
         }
-      } catch {
-
+      } catch (roleError) {
+        console.error('Failed to determine community role:', roleError);
       }
     };
     determineRole();
-  }, [communityId, isLocalGroup, user?.email]);
+  }, [communityId, isLocalGroup, user?.email, user?.id]);
 
   const openGroupsRef = useRef(openGroups);
   useEffect(() => {
@@ -276,8 +282,8 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
           if (cached) {
             lg = JSON.parse(cached);
           }
-        } catch {
-
+        } catch (storageError) {
+          console.warn('Failed to read cached local group:', storageError);
         }
 
         if (!lg) {
@@ -287,24 +293,24 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
 
         try {
           sessionStorage.setItem(`localGroupDetails:${communityId}`, JSON.stringify(lg));
-        } catch {
-
+        } catch (storageError) {
+          console.warn('Failed to cache local-group details:', storageError);
         }
 
         const chatRoomCode = lg.chatRoomCode || lg.roomCode || lg.code;
         const chatRoomId = lg.chatRoomId || lg.chatroomId || lg.primaryChatRoomId || lg.roomId || lg.id;
-              if (chatRoomCode) {
+        if (chatRoomCode) {
           try {
             sessionStorage.setItem(`localGroupChatRoomCode:${communityId}`, chatRoomCode);
-          } catch {
-
+          } catch (storageError) {
+            console.warn('Failed to cache local-group room code:', storageError);
           }
         }
         if (chatRoomId) {
           try {
             sessionStorage.setItem(`localGroupChatRoomId:${communityId}`, String(chatRoomId));
-          } catch {
-
+          } catch (storageError) {
+            console.warn('Failed to cache local-group room ID:', storageError);
           }
         }
 
@@ -426,7 +432,7 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
 
   const handleAddVoiceRoom = (groupName) => {
     const targetGroup = groups.find((g) => g.name === groupName);
-    const roomId = targetGroup?.id;
+    const roomId = targetGroup?.chatRoomId || targetGroup?.id;
     setChannelModalContext({ groupName, roomType: 'voice', roomId });
     setShowCreateChannelModal(true);
   };
@@ -437,6 +443,7 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
 
     const clean = channelName.trim();
     const userEmail = user?.email || getStoredUserEmail();
+    let channelCreated = false;
 
     if (roomType === 'chat') {
       const targetGroup = groups.find((g) => g.name === groupName);
@@ -445,8 +452,8 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
       if (isLocalGroup && !roomCode) {
         try {
           roomCode = sessionStorage.getItem(`localGroupChatRoomCode:${communityId}`);
-        } catch {
-
+        } catch (storageError) {
+          console.warn('Failed to read cached local-group room code:', storageError);
         }
       }
 
@@ -488,6 +495,7 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
             detail: { roomCode, chatroomName: clean, groupName }
           }));
 
+          channelCreated = true;
           fetchGroups(true);
         } catch (error) {
           console.error('Failed to create chatroom:', error);
@@ -495,15 +503,21 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
             detail: { message: error.message || 'Failed to create chatroom', type: 'error' }
           }));
         }
+      } else {
+        window.dispatchEvent(new CustomEvent('toast', {
+          detail: { message: 'Chat room code not found', type: 'error' }
+        }));
       }
 
-      setGroups((prev) =>
-        prev.map((g) =>
-          g.name === groupName
-            ? { ...g, chatRooms: [...(g.chatRooms || []), clean] }
-            : g
-        )
-      );
+      if (channelCreated) {
+        setGroups((prev) =>
+          prev.map((g) =>
+            g.name === groupName && !(g.chatRooms || []).includes(clean)
+              ? { ...g, chatRooms: [...(g.chatRooms || []), clean] }
+              : g
+          )
+        );
+      }
     } else if (roomType === 'voice') {
       let chatRoomId = roomId;
       if (isLocalGroup) {
@@ -516,8 +530,8 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
             if (storedChatRoomId) {
               chatRoomId = storedChatRoomId;
             }
-          } catch {
-
+          } catch (storageError) {
+            console.warn('Failed to read cached local-group room ID:', storageError);
           }
         }
         if (!chatRoomId) {
@@ -529,7 +543,7 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
         try {
           const response = await createVoiceRoom(chatRoomId, clean, userEmail);
 
-          const storageKey = `voiceRoom_${roomId}_${clean}`;
+          const storageKey = `voiceRoom_${chatRoomId}_${clean}`;
           const existingVoiceRooms = JSON.parse(sessionStorage.getItem('voiceRooms') || '[]');
 
           const voiceRoomFromResponse = response?.data || response;
@@ -543,14 +557,14 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
             createdAt: actualVoiceRoom?.createdAt || response?.data?.createdAt || new Date().toISOString(),
             active: actualVoiceRoom?.active !== undefined ? actualVoiceRoom?.active : (response?.data?.active !== undefined ? response?.data?.active : true),
             roomCode: actualVoiceRoom?.roomCode || response?.data?.roomCode || response?.roomCode,
-            chatRoomId: roomId,
+            chatRoomId,
             groupName: groupName,
             created: new Date().toISOString()
           };
 
           const existingIndex = existingVoiceRooms.findIndex(
-            (vr) => (vr.id === voiceRoomData.id && (vr.chatRoomId === roomId || vr.chatRoomId === String(roomId))) ||
-                    (vr.name === clean && (vr.chatRoomId === roomId || vr.chatRoomId === String(roomId)))
+            (vr) => (vr.id === voiceRoomData.id && String(vr.chatRoomId) === String(chatRoomId)) ||
+                    (vr.name === clean && String(vr.chatRoomId) === String(chatRoomId))
           );
 
           if (existingIndex >= 0) {
@@ -567,9 +581,10 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
           }));
 
           window.dispatchEvent(new CustomEvent('voice-room:created', {
-            detail: { roomId, voiceRoomName: clean }
+            detail: { roomId: chatRoomId, voiceRoomName: clean }
           }));
 
+          channelCreated = true;
           fetchGroups(true);
         } catch (error) {
           console.error('Failed to create voice room:', error);
@@ -583,21 +598,21 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
         }));
       }
 
-      setGroups((prev) =>
-        prev.map((g) =>
-          g.name === groupName
-            ? { ...g, voiceRooms: [...(g.voiceRooms || []), clean] }
-            : g
-        )
-      );
+      if (channelCreated) {
+        setGroups((prev) =>
+          prev.map((g) =>
+            g.name === groupName && !(g.voiceRooms || []).includes(clean)
+              ? { ...g, voiceRooms: [...(g.voiceRooms || []), clean] }
+              : g
+          )
+        );
+      }
     }
 
-    try {
+    if (channelCreated) {
       window.dispatchEvent(new CustomEvent('community:add-channel', {
         detail: { community, groupName, kind: roomType === 'chat' ? 'chat-room' : 'voice-room', name: clean }
       }));
-    } catch (error) {
-      console.error('Error dispatching add-channel event:', error);
     }
   };
 
@@ -644,24 +659,19 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
         }
       }
     } else if (action === 'leave') {
-      const userEmail = user?.email || getStoredUserEmail();
-      if (isLocalGroup) {
-        try { window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Left local-group', type: 'success' } })); } catch {
-
-        }
-        onBack?.();
-      } else if (community?.name && userEmail) {
-        leaveCommunity({ communityName: community.name, userEmail })
+      const identifier = communityId || community?.name;
+      if (identifier) {
+        leaveCommunity({ communityId: identifier })
           .then(() => {
-            try { window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Left community', type: 'success' } })); } catch {
-
-            }
+            window.dispatchEvent(new CustomEvent('toast', {
+              detail: { message: isLocalGroup ? 'Left local-group' : 'Left community', type: 'success' }
+            }));
             onBack?.();
           })
           .catch((err) => {
-            try { window.dispatchEvent(new CustomEvent('toast', { detail: { message: err.message || 'Failed to leave', type: 'error' } })); } catch {
-
-            }
+            window.dispatchEvent(new CustomEvent('toast', {
+              detail: { message: err.message || 'Failed to leave', type: 'error' }
+            }));
           });
       }
     }
@@ -693,9 +703,9 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
     fetchGroups(true);
 
     window.dispatchEvent(new CustomEvent('community:refresh-groups', { detail: community }));
-    try { window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Group created successfully', type: 'success' } })); } catch {
-
-    }
+    window.dispatchEvent(new CustomEvent('toast', {
+      detail: { message: 'Group created successfully', type: 'success' }
+    }));
   };
 
   useEffect(() => {
@@ -728,9 +738,9 @@ const CommunityLeftPanel = ({ community, onBack, isLocalGroup = false }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 truncate flex-1">
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-zinc-400 flex-shrink-0">
-              {community?.imageUrl && !imageError ? (
+              {communityImage && !imageError ? (
                 <img
-                  src={community.imageUrl}
+                  src={communityImage}
                   alt={title}
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"

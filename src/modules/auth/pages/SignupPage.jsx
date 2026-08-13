@@ -5,6 +5,8 @@ import { showToast } from '../../../shared/services/toast';
 import { SEO } from '../../../shared';
 import AuthSlides from '../components/AuthSlides';
 
+const PASSWORD_PATTERN = /^(?=.*[A-Z])(?=.*[#@!%&])(?=.*[0-9])(?!.*\s).{8,}$/;
+
 const SignupPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +30,7 @@ const SignupPage = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const debounceRefs = useRef({});
   const throttleRefs = useRef({ requestOtp: 0, verifyOtp: 0, resendOtp: 0 });
-  const timerIntervalRef = useRef(null);
+  const requestLocksRef = useRef({ requestOtp: false, verifyOtp: false, resendOtp: false });
 
   const runDebounced = (key, fn, delay = 300) => {
     if (debounceRefs.current[key]) {
@@ -56,9 +58,12 @@ const SignupPage = () => {
   }, []);
 
   useEffect(() => {
-    if (location.state?.step === 3 || sessionStorage.getItem('pendingVerificationEmail')) {
-      const emailToVerify = location.state?.email || sessionStorage.getItem('pendingVerificationEmail') || sessionStorage.getItem('signupEmail');
-      const token = location.state?.token || sessionStorage.getItem('registrationToken');
+    const pendingEmail = sessionStorage.getItem('pendingVerificationEmail');
+    const signupEmail = sessionStorage.getItem('signupEmail');
+    const storedToken = sessionStorage.getItem('registrationToken');
+    if (location.state?.step === 3 || pendingEmail || (signupEmail && storedToken)) {
+      const emailToVerify = location.state?.email || pendingEmail || signupEmail;
+      const token = location.state?.token || storedToken;
       if (emailToVerify) {
         setFormData((prev) => ({ ...prev, email: emailToVerify }));
         if (token) setRegistrationToken(token);
@@ -68,28 +73,13 @@ const SignupPage = () => {
   }, [location.state]);
 
   useEffect(() => {
-    if (resendTimer > 0) {
-      timerIntervalRef.current = setInterval(() => {
-        setResendTimer((prev) => {
-          if (prev <= 1) {
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    }
+    if (resendTimer <= 0) return undefined;
 
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    };
+    const timeoutId = setTimeout(() => {
+      setResendTimer((previous) => Math.max(previous - 1, 0));
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
   }, [resendTimer]);
 
   const hasEmoji = (value) => /[\u{1F300}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}]/u.test(value || '');
@@ -164,8 +154,7 @@ const SignupPage = () => {
     if (name === 'password') {
       setPasswordError(false);
       runDebounced('password', () => {
-        const passwordRegex = /^(?=.*[A-Z])(?=.*[#@!%&])(?=.*[0-9])(?!.*\s).{8,}$/;
-        setPasswordError(Boolean(value) && (!passwordRegex.test(value) || hasEmoji(value)));
+        setPasswordError(Boolean(value) && (!PASSWORD_PATTERN.test(value) || hasEmoji(value)));
       });
     }
   };
@@ -218,85 +207,89 @@ const SignupPage = () => {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordBlurred, setConfirmPasswordBlurred] = useState(false);
 
-  const handleRequestOtpAndNext = (e) => {
+  const handleRequestOtpAndNext = async (e) => {
     e.preventDefault();
-    let hasEmailError = false;
-    if (formData.email) {
-      const isEmailValid = isValidEmail(formData.email);
-      hasEmailError = !isEmailValid;
-      setEmailError(hasEmailError);
-      if (hasEmailError) {
-        if (isMobile()) {
-          showToast('Email Requirements: Must be a valid email address, must contain @ symbol and a domain name.', 'error');
-        }
-        return;
-      }
-    }
+    if (Object.values(requestLocksRef.current).some(Boolean)) return;
 
-    if (passwordError) {
+    const email = formData.email.trim().toLowerCase();
+    const hasEmailValidationError = !isValidEmail(email);
+    const hasPasswordValidationError = !PASSWORD_PATTERN.test(formData.password) || hasEmoji(formData.password);
+    const passwordsDoNotMatch = formData.password !== formData.confirmPassword;
+
+    setEmailError(hasEmailValidationError);
+    setPasswordError(hasPasswordValidationError);
+    setPasswordMismatch(passwordsDoNotMatch);
+    setConfirmPasswordBlurred(true);
+
+    if (hasEmailValidationError) {
+      if (isMobile()) {
+        showToast('Email Requirements: Must be a valid email address, must contain @ symbol and a domain name.', 'error');
+      }
+      return;
+    }
+    if (hasPasswordValidationError) {
       if (isMobile()) {
         showToast('Password Requirements: Password must be at least 8 characters, with one uppercase letter, with a number and one special character (#, @, !, %, &).', 'error');
       }
       return;
     }
-    if (passwordMismatch) {
+    if (passwordsDoNotMatch) {
       if (isMobile()) {
         showToast('Passwords do not match.', 'error');
       }
       return;
     }
-    if (hasEmoji(formData.email) || hasEmoji(formData.password)) {
-      if (isMobile()) {
-        showToast('Emojis are not allowed in email or password fields.', 'error');
-      }
-      return;
-    }
-    if (!formData.email || !formData.password) {
-      return;
-    }
     if (shouldThrottleAction('requestOtp', 2500, 'Please wait a moment before requesting another OTP.')) {
       return;
     }
+
+    requestLocksRef.current.requestOtp = true;
     setLoading(true);
-    const { firstName, lastName, email, password } = formData;
+    const { firstName, lastName, password } = formData;
     const payload = { firstName, lastName, email, password };
-    registerUser(payload)
-      .then((res) => {
-        const token = (res && res.data) ? (res.data.token || res.data) : '';
-        setRegistrationToken(token);
+    try {
+      const response = await registerUser(payload);
+      const responseData = response?.data || response;
+      const token = typeof responseData?.token === 'string' ? responseData.token : '';
+      if (!token) {
+        throw new Error('Registration started without a verification token. Please try again.');
+      }
 
-        if (token && typeof token === 'string') {
-          sessionStorage.setItem('registrationToken', token);
-        }
+      setFormData((previous) => ({ ...previous, email }));
+      setRegistrationToken(token);
+      sessionStorage.setItem('registrationToken', token);
+      sessionStorage.setItem('signupEmail', email);
+      sessionStorage.setItem('pendingVerificationEmail', email);
+      sessionStorage.setItem('signupFirstName', firstName);
+      sessionStorage.setItem('signupLastName', lastName);
 
-        sessionStorage.setItem('signupEmail', email);
-        sessionStorage.setItem('signupFirstName', firstName);
-        sessionStorage.setItem('signupLastName', lastName);
+      showToast('OTP sent to your email!', 'success');
+      setResendTimer(30);
+      setStep(3);
+    } catch (err) {
+      console.error('Failed to initiate registration/OTP:', err.message);
+      const errorMessage = err.message || 'Failed to send OTP. Please try again.';
 
-        showToast('OTP sent to your email!', 'success');
-        setResendTimer(30);
-        setStep(3);
-      })
-      .catch((err) => {
-        console.error('Failed to initiate registration/OTP:', err.message);
-        const errorMessage = err.message || 'Failed to send OTP. Please try again.';
+      if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('already exists') || err.status === 409) {
+        sessionStorage.setItem('lastIdentifier', email);
+        showToast('Email is already registered. Redirecting to login...', 'info');
+        setTimeout(() => {
+          navigate('/login', { state: { autoFillEmail: email } });
+        }, 1200);
+        return;
+      }
 
-        if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('already exists') || err.status === 409) {
-          sessionStorage.setItem('lastIdentifier', email);
-          showToast('Email is already registered. Redirecting to login...', 'info');
-          setTimeout(() => {
-            navigate('/login', { state: { autoFillEmail: email } });
-          }, 1200);
-          return;
-        }
-
-        showToast(errorMessage, 'error');
-      })
-      .finally(() => setLoading(false));
+      showToast(errorMessage, 'error');
+    } finally {
+      requestLocksRef.current.requestOtp = false;
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtpAndRegister = async (e) => {
     e.preventDefault();
+    if (Object.values(requestLocksRef.current).some(Boolean)) return;
+
     const onlyDigits = otp.replace(/\D/g, '');
     if (!/^\d{6}$/.test(onlyDigits)) {
       setOtpError(true);
@@ -306,6 +299,7 @@ const SignupPage = () => {
       return;
     }
     setOtpError(false);
+    requestLocksRef.current.verifyOtp = true;
     setLoading(true);
     setInvalidOtp(false);
     try {
@@ -341,29 +335,41 @@ const SignupPage = () => {
       }
       showToast(errorMessage, 'error');
     } finally {
+      requestLocksRef.current.verifyOtp = false;
       setLoading(false);
     }
   };
 
-  const handleResendOtp = (e) => {
+  const handleResendOtp = async (e) => {
     e.preventDefault();
-    if (!formData.email || resendTimer > 0) return;
+    if (!formData.email || resendTimer > 0 || Object.values(requestLocksRef.current).some(Boolean)) return;
+    if (shouldThrottleAction('resendOtp', 2500, 'Please wait a moment before requesting another OTP.')) return;
+
+    requestLocksRef.current.resendOtp = true;
     setLoading(true);
-    resendRegisterOtp(formData.email, registrationToken)
-      .then(() => {
-        showToast('OTP resent successfully!', 'success');
-        setResendTimer(30);
-      })
-      .catch((err) => {
-        console.error('Failed to resend OTP:', err.message);
-        const errorMessage = err.message || 'Failed to resend OTP. Please try again.';
-        showToast(errorMessage, 'error');
-      })
-      .finally(() => setLoading(false));
+    try {
+      await resendRegisterOtp(
+        formData.email.trim().toLowerCase(),
+        registrationToken || sessionStorage.getItem('registrationToken') || ''
+      );
+      showToast('OTP resent successfully!', 'success');
+      setResendTimer(30);
+    } catch (err) {
+      console.error('Failed to resend OTP:', err.message);
+      const errorMessage = err.message || 'Failed to resend OTP. Please try again.';
+      showToast(errorMessage, 'error');
+    } finally {
+      requestLocksRef.current.resendOtp = false;
+      setLoading(false);
+    }
   };
 
   const handleBackToStepOne = (e) => {
     e.preventDefault();
+    sessionStorage.removeItem('registrationToken');
+    sessionStorage.removeItem('pendingVerificationEmail');
+    sessionStorage.removeItem('signupEmail');
+    setRegistrationToken('');
     setStep(1);
     setOtp('');
     setInvalidOtp(false);

@@ -14,11 +14,10 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
   const { user } = useAuth();
   const modalRef = useRef(null);
 
-  const isAuthorized = !currentUserRole ||
-                      currentUserRole.toUpperCase() === 'ADMIN' ||
-                      currentUserRole.toUpperCase() === 'OWNER' ||
-                      currentUserRole.toUpperCase() === 'WORKSPACE_OWNER' ||
-                      currentUserRole.toUpperCase() === 'MEMBER';
+  const normalizedRole = String(currentUserRole || '').toUpperCase();
+  const isAuthorized = normalizedRole === 'ADMIN' ||
+                      normalizedRole === 'OWNER' ||
+                      normalizedRole === 'WORKSPACE_OWNER';
 
   const generateInviteLink = useCallback(async () => {
     if (!communityId || !user?.email) {
@@ -44,7 +43,6 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
         response = await createLocalGroupInvite({
           groupId: communityId,
           inviterEmail: user.email,
-          maxUses: 5,
           expiresInHours: 24
         });
       } else {
@@ -185,4 +183,3 @@ const InviteModal = ({ isOpen, onClose, communityId, isLocalGroup = false, curre
 };
 
 export default InviteModal;
-

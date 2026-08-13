@@ -8,7 +8,7 @@ const getSocketServerUrl = () => {
       const url = new URL(BASE_URL);
       return url.origin;
     } catch {
-
+      // Fall back to the current hostname when the configured URL is malformed.
     }
   }
   return typeof window !== 'undefined'
@@ -36,6 +36,7 @@ export const useVoiceRoom = (
   const remoteStreamsRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const audioContainerRef = useRef(null);
+  const connectionAttemptRef = useRef(0);
 
   const log = useCallback((msg) => {
     console.log(`[VoiceRoom] ${msg}`);
@@ -50,15 +51,15 @@ export const useVoiceRoom = (
         );
         const normalized = String(identifier).toLowerCase();
         if (usernames[normalized]) return usernames[normalized];
-      } catch (e) {
-
+      } catch (error) {
+        log(`Failed to read cached participant names: ${error.message}`);
       }
     }
     if (typeof identifier === 'string' && identifier.includes('@')) {
       return identifier.split('@')[0];
     }
     return identifier;
-  }, [communityId]);
+  }, [communityId, log]);
 
   useEffect(() => {
     if (enabled && janusRoomId) {
@@ -89,6 +90,7 @@ export const useVoiceRoom = (
   }, [log]);
 
   const cleanup = useCallback(() => {
+    connectionAttemptRef.current += 1;
     log('Cleaning up voice/video room connections...');
 
     if (socketRef.current) {
@@ -105,8 +107,8 @@ export const useVoiceRoom = (
     peerConnectionsRef.current.forEach((pc) => {
       try {
         pc.close();
-      } catch (e) {
-
+      } catch (error) {
+        log(`Error closing peer connection: ${error.message}`);
       }
     });
     peerConnectionsRef.current.clear();
@@ -124,7 +126,7 @@ export const useVoiceRoom = (
 
     setIsConnected(false);
     setIsVideoOn(false);
-    setIsMuted(false);
+    setIsMuted(true);
     setParticipants([]);
   }, [log]);
 
@@ -206,6 +208,8 @@ export const useVoiceRoom = (
       return;
     }
 
+    const connectionAttempt = connectionAttemptRef.current + 1;
+    connectionAttemptRef.current = connectionAttempt;
     log('Initializing media access (audio & video)...');
     try {
 
@@ -236,6 +240,12 @@ export const useVoiceRoom = (
         log(`❌ Audio media error: ${audioErr.message}`);
         setError(`Media access failed: ${audioErr.message}`);
       }
+    }
+
+    if (connectionAttemptRef.current !== connectionAttempt) {
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+      return;
     }
 
     const socketUrl = getSocketServerUrl();
@@ -454,8 +464,8 @@ export const useVoiceRoom = (
         const pc = peerConnectionsRef.current.get(peerSocketId);
         try {
           pc.close();
-        } catch (e) {
-
+        } catch (error) {
+          log(`Error closing departed peer connection: ${error.message}`);
         }
         peerConnectionsRef.current.delete(peerSocketId);
       }

@@ -20,13 +20,14 @@ const LocalGroupPage = () => {
   const [localGroup, setLocalGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const getIsMobileView = () => (typeof window !== 'undefined' ? window.innerWidth <= 640 : false);
-  const getIsTabletOrAbove = () => (typeof window !== 'undefined' ? window.innerWidth >= 641 : false);
-  const getIsLargeOrAbove = () => (typeof window !== 'undefined' ? window.innerWidth >= 1025 : false);
+  const getIsMobileView = () => (typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+  const getIsTabletOrAbove = () => (typeof window !== 'undefined' ? window.innerWidth >= 640 : false);
+  const getIsLargeOrAbove = () => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
 
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [hasSelectedChannel, setHasSelectedChannel] = useState(false);
   const [isMobileView, setIsMobileView] = useState(getIsMobileView);
+  const [isLargeView, setIsLargeView] = useState(getIsLargeOrAbove);
   const [showCenterPanel, setShowCenterPanel] = useState(getIsTabletOrAbove);
   const [layoutStyle, setLayoutStyle] = useState({ minHeight: 'auto' });
   const showInbox = useSelector(selectShowInbox);
@@ -112,6 +113,7 @@ const LocalGroupPage = () => {
       const mobile = getIsMobileView();
       const large = getIsLargeOrAbove();
       setIsMobileView(mobile);
+      setIsLargeView(large);
       if (mobile) {
         setShowCenterPanel(hasSelectedChannel);
         setLayoutStyle({ minHeight: 'auto' });
@@ -324,25 +326,25 @@ const LocalGroupPage = () => {
             </>
           )}
 
-          <div className="hidden sm:flex flex-1 min-w-0">
-            <CommunityCenterPanel
-              community={localGroup}
-              onToggleRightPanel={() => setShowRightPanel(true)}
-              isLocalGroup={true}
-            />
-          </div>
+          {!isMobileView && (
+            <div className="flex flex-1 min-w-0">
+              <CommunityCenterPanel
+                community={localGroup}
+                onToggleRightPanel={() => setShowRightPanel(true)}
+                isLocalGroup={true}
+              />
+            </div>
+          )}
         </>
 
-        <div className="hidden lg:flex w-full max-w-xs">
-          <CommunityRightPanel
-            community={localGroup}
-            isLocalGroup={true}
-            onClose={showRightPanel ? () => setShowRightPanel(false) : null}
-          />
-        </div>
+        {isLargeView && (
+          <div className="flex w-full max-w-xs">
+            <CommunityRightPanel community={localGroup} isLocalGroup={true} />
+          </div>
+        )}
       </div>
-      {showRightPanel && (
-        <div className="fixed inset-0 z-40 flex lg:hidden">
+      {showRightPanel && !isLargeView && (
+        <div className="fixed inset-0 z-40 flex">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowRightPanel(false)}

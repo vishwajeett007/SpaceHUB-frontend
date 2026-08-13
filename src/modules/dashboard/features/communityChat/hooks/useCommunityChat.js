@@ -221,8 +221,8 @@ export const useCommunityChat = ({
       if (!activeChatRoomCode) {
         try {
           await joinRoom(roomCode, userEmail);
-        } catch {
-
+        } catch (joinError) {
+          console.warn('Failed to join the community chat room:', joinError);
         }
       }
 

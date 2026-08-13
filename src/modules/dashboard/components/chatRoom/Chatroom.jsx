@@ -116,6 +116,7 @@ const ChatRoom = ({
   const fileInputRef = useRef(null);
   const messageInputRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const presignedRequestsRef = useRef(new Set());
 
   const emojis = useMemo(() => ['😊', '😂', '🎉', '🔥', '👍', '❤️'], []);
 
@@ -156,15 +157,15 @@ const ChatRoom = ({
       messages.forEach((msg) => {
         if (Array.isArray(msg.images)) {
           msg.images.forEach((img) => {
-            if (img && !img.startsWith('http') && !presignedUrls[img]) {
+            if (typeof img === 'string' && !img.startsWith('http') && !presignedUrls[img] && !presignedRequestsRef.current.has(img)) {
               fileKeysToFetch.add(img);
             }
           });
         }
-        if (msg.isFile && msg.fileKey && !msg.fileKey.startsWith('http') && !presignedUrls[msg.fileKey]) {
+        if (msg.isFile && typeof msg.fileKey === 'string' && !msg.fileKey.startsWith('http') && !presignedUrls[msg.fileKey] && !presignedRequestsRef.current.has(msg.fileKey)) {
           fileKeysToFetch.add(msg.fileKey);
         }
-        if (msg.isFile && msg.fileUrl && !msg.fileUrl.startsWith('http') && !presignedUrls[msg.fileUrl]) {
+        if (msg.isFile && typeof msg.fileUrl === 'string' && !msg.fileUrl.startsWith('http') && !presignedUrls[msg.fileUrl] && !presignedRequestsRef.current.has(msg.fileUrl)) {
           fileKeysToFetch.add(msg.fileUrl);
         }
       });
@@ -172,6 +173,7 @@ const ChatRoom = ({
       if (fileKeysToFetch.size === 0) return;
 
       const fetchPromises = Array.from(fileKeysToFetch).map(async (fileKey) => {
+        presignedRequestsRef.current.add(fileKey);
         try {
           const extension = fileKey.split('.').pop()?.toLowerCase();
           const contentType = contentTypeMap[extension] || 'application/octet-stream';
@@ -182,6 +184,8 @@ const ChatRoom = ({
           }
         } catch (error) {
           console.error(`Failed to get presigned URL for ${fileKey}:`, error);
+        } finally {
+          presignedRequestsRef.current.delete(fileKey);
         }
       });
 
@@ -191,8 +195,7 @@ const ChatRoom = ({
     if (messages.length > 0) {
       fetchPresignedUrls();
     }
-
-  }, [messages]);
+  }, [messages, presignedUrls]);
 
   useEffect(() => {
     if (messageInputRef.current) {
@@ -246,6 +249,7 @@ const ChatRoom = ({
           detail: { message: `Failed to upload ${attachment.fileName}: ${error.message}`, type: 'error' }
         }));
 
+        URL.revokeObjectURL(attachment.url);
         setAttachments((prev) => prev.filter((att) => att.file !== attachment.file));
       }
     });
@@ -305,7 +309,7 @@ const ChatRoom = ({
     try {
       attachments.forEach((a) => URL.revokeObjectURL(a.url));
     } catch {
-
+      // Object URLs may already have been revoked by the browser.
     }
     setAttachments([]);
     try {
@@ -315,7 +319,7 @@ const ChatRoom = ({
         }
       });
     } catch {
-
+      // requestAnimationFrame is not available in every rendering environment.
     }
   }, [message, attachments, currentUser, sendMessage, onSend]);
 
@@ -600,7 +604,7 @@ const ChatRoom = ({
                       try {
                         URL.revokeObjectURL(a.url);
                       } catch {
-
+                        // The preview URL may already have been revoked.
                       }
                       return updated;
                     });

@@ -23,7 +23,6 @@ const LocalGroupSettingsPage = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [maxUses, setMaxUses] = useState(5);
   const [expiresInHours, setExpiresInHours] = useState(24);
   const inviteModalRef = useRef(null);
   const [joinRequests, setJoinRequests] = useState([]);
@@ -55,8 +54,14 @@ const LocalGroupSettingsPage = () => {
           try {
             const cached = sessionStorage.getItem(`localGroupDetails:${id}`);
             const lg = cached ? JSON.parse(cached) : null;
-            const creator = lg?.creatorEmail || lg?.createdByEmail || lg?.creator || data?.creatorEmail || data?.createdByEmail || data?.creator || '';
-            setCurrentUserRole(creator && creator.toLowerCase() === userEmail.toLowerCase() ? 'ADMIN' : 'MEMBER');
+            const creator = data?.creatorEmail || data?.createdByEmail || data?.creator || lg?.creatorEmail || lg?.createdByEmail || lg?.creator || '';
+            const details = { ...(lg || {}), ...data };
+            const membership = details?.members?.find((member) => (
+              member?.userId === user?.id || member?.user?.id === user?.id
+            ));
+            const isOwner = details?.ownerId === user?.id
+              || (creator && creator.toLowerCase() === userEmail.toLowerCase());
+            setCurrentUserRole(isOwner ? 'OWNER' : String(membership?.role || 'MEMBER').toUpperCase());
           } catch (cacheError) {
             console.warn('Failed to read cached local-group details:', cacheError);
             setCurrentUserRole('MEMBER');
@@ -69,11 +74,17 @@ const LocalGroupSettingsPage = () => {
       }
     };
     fetchSettings();
-  }, [id, user?.email]);
+  }, [id, user?.email, user?.id]);
 
   useEffect(() => {
+    const canManageRequests = ['ADMIN', 'OWNER', 'WORKSPACE_OWNER'].includes(currentUserRole);
+    if (!id || !canManageRequests) {
+      setJoinRequests([]);
+      setLoadingRequests(false);
+      return undefined;
+    }
+
     const fetchJoinRequests = async () => {
-      if (!id) return;
       setLoadingRequests(true);
       try {
         const response = await getLocalGroupInvites(id);
@@ -91,7 +102,7 @@ const LocalGroupSettingsPage = () => {
 
     const interval = setInterval(fetchJoinRequests, 30000);
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, currentUserRole]);
 
   const generateInviteLink = useCallback(async () => {
     if (!id || !user?.email) {
@@ -117,7 +128,6 @@ const LocalGroupSettingsPage = () => {
       const response = await createLocalGroupInvite({
         groupId: id,
         inviterEmail: user.email,
-        maxUses,
         expiresInHours,
       });
 
@@ -133,7 +143,7 @@ const LocalGroupSettingsPage = () => {
     } finally {
       setInviteLoading(false);
     }
-  }, [id, user?.email, maxUses, expiresInHours, currentUserRole]);
+  }, [id, user?.email, expiresInHours, currentUserRole]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -277,8 +287,8 @@ const LocalGroupSettingsPage = () => {
               <div className="space-y-3">
                 {joinRequests.map((request, index) => {
                   const requestId = request?.id || request?.inviteId || request?.userId || `request-${index}`;
-                  const requesterName = request?.username || request?.name || request?.email?.split('@')[0] || 'Unknown';
-                  const requesterEmail = request?.email || '';
+                  const requesterName = request?.senderName || request?.username || request?.name || request?.senderEmail?.split('@')[0] || request?.email?.split('@')[0] || 'Unknown';
+                  const requesterEmail = request?.senderEmail || request?.email || '';
                   const inviteLink = request?.inviteLink || request?.link || '';
                   const createdAt = request?.createdAt || request?.created_at || '';
                   const expiresAt = request?.expiresAt || request?.expires_at || '';
@@ -366,19 +376,6 @@ const LocalGroupSettingsPage = () => {
               <div className="mb-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Uses
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={maxUses}
-                    onChange={(e) => setMaxUses(parseInt(e.target.value) || 5)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Expires In (Hours)
                   </label>
                   <input
@@ -423,7 +420,7 @@ const LocalGroupSettingsPage = () => {
                   </button>
                 </div>
                 <div className="text-xs text-gray-500 text-center">
-                  Max uses: {maxUses} | Expires in: {expiresInHours} hours
+                  Expires in: {expiresInHours} hours
                 </div>
               </div>
             ) : (

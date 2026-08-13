@@ -28,7 +28,7 @@ const dispatchFriendsRefresh = () => {
   try {
     window.dispatchEvent(new Event('friends:refresh'));
   } catch {
-
+    // Ignore environments where browser events are unavailable.
   }
 };
 

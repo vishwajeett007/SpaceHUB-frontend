@@ -11,6 +11,7 @@ const DashboardRightSidebar = ({ onClose }) => {
   const [searchError, setSearchError] = useState('');
   const [addingFriend, setAddingFriend] = useState({});
   const [requested, setRequested] = useState({});
+  const searchTimeoutRef = useRef(null);
 
   const handleSearch = useCallback(async (query) => {
     if (!query || query.trim().length < 2) {
@@ -47,11 +48,20 @@ const DashboardRightSidebar = ({ onClose }) => {
   }, [user]);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      searchTimeoutRef.current = null;
       handleSearch(searchQuery);
     }, 500);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+    };
   }, [searchQuery, handleSearch]);
 
   const searchInputRef = useRef(null);
@@ -88,14 +98,14 @@ const DashboardRightSidebar = ({ onClose }) => {
           : friendUser?.username || friendUser?.email || 'user';
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: `Request sent to ${friendName}`, type: 'success' } }));
       } catch {
-
+        // A failed toast must not turn a successful friend request into an error.
       }
     } catch (e) {
       console.error('Failed to send friend request:', e);
       try {
         window.dispatchEvent(new CustomEvent('toast', { detail: { message: e.message || 'Failed to send friend request', type: 'error' } }));
       } catch {
-
+        // Ignore environments where browser events are unavailable.
       }
     } finally {
       setAddingFriend((prev) => {
@@ -158,6 +168,10 @@ const DashboardRightSidebar = ({ onClose }) => {
 
   const handleSendRequest = useCallback(() => {
     if (searchQuery.trim().length >= 2) {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
       handleSearch(searchQuery);
     }
   }, [searchQuery, handleSearch]);

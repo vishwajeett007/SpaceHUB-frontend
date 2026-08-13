@@ -43,7 +43,7 @@ export async function createLocalGroup({ name, description, imageFile }) {
     }
   }
 
-  const response = await authenticatedFetch(`${BASE_URL}local-group/create`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/local-group/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, description, avatarUrl })
@@ -74,7 +74,7 @@ export async function getMyCommunities() {
 }
 
 export async function getAllLocalGroups() {
-  const url = `${BASE_URL}local-group/all`;
+  const url = `${BASE_URL}community/local-group/all`;
   const response = await authenticatedFetch(url, {
     method: 'GET'
   });
@@ -84,6 +84,7 @@ export async function getAllLocalGroups() {
 export async function getCommunityMembers(communityId) {
   const response = await authenticatedFetch(`${BASE_URL}community/members`, {
     method: 'POST',
+    dedupe: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ communityId })
   });
@@ -108,7 +109,7 @@ export async function getCommunityRooms(communityId) {
 }
 
 export async function getLocalGroupById(groupId) {
-  const response = await authenticatedFetch(`${BASE_URL}local-group/${groupId}`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/local-group/${groupId}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' }
   });
@@ -155,19 +156,19 @@ export async function createCommunityInvite({ communityId, email }) {
   return handleCommunityJson(response);
 }
 
-export async function createLocalGroupInvite({ groupId, maxUses = 5, expiresInHours = 24 }) {
-  const response = await authenticatedFetch(`${BASE_URL}localgroup/invites/create/${groupId}`, {
+export async function createLocalGroupInvite({ groupId, expiresInHours = 24 }) {
+  const response = await authenticatedFetch(`${BASE_URL}community/localgroup/invites/create/${groupId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ maxUses, expiresInHours })
+    body: JSON.stringify({ expiresInHours })
   });
   return handleCommunityJson(response);
 }
 
 export async function getLocalGroupInvites(groupId) {
-  const response = await authenticatedFetch(`${BASE_URL}localgroup/invites/list/${groupId}`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/local-group/${groupId}/join-requests`, {
     method: 'GET'
   });
   return handleCommunityJson(response);
@@ -259,21 +260,21 @@ export async function deleteCommunityRoom(communityId, roomId) {
 }
 
 export async function getLocalGroupMembers(groupId) {
-  const response = await authenticatedFetch(`${BASE_URL}local-group/${groupId}/members`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/local-group/${groupId}/members`, {
     method: 'GET'
   });
   return handleJson(response);
 }
 
 export async function getLocalGroupSettings(groupId) {
-  const response = await authenticatedFetch(`${BASE_URL}local-group/${groupId}/settings`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/local-group/${groupId}/settings`, {
     method: 'GET'
   });
   return handleJson(response);
 }
 
 export async function joinLocalGroup({ groupId }) {
-  const response = await authenticatedFetch(`${BASE_URL}local-group/join`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/local-group/join`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -284,7 +285,7 @@ export async function joinLocalGroup({ groupId }) {
 }
 
 export async function acceptLocalGroupInvite({ groupId, inviteCode }) {
-  const response = await authenticatedFetch(`${BASE_URL}localgroup/invites/accept`, {
+  const response = await authenticatedFetch(`${BASE_URL}community/localgroup/invites/accept`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

@@ -13,20 +13,20 @@ const CreateJoin = ({ onBack, onSend, onSuccess }) => {
   const parseInviteLink = (link) => {
     try {
       const trimmedLink = link.trim();
-      const localGroupPattern = /localgroup\/invite\/([a-f0-9-]{36})\/([a-zA-Z0-9]+)/i;
+      const localGroupPattern = /localgroup\/invite\/([a-f0-9-]{36})\/([^/?#]+)/i;
       const localGroupMatch = trimmedLink.match(localGroupPattern);
 
       if (localGroupMatch) {
         const groupId = localGroupMatch[1];
-        const inviteCode = localGroupMatch[2];
+        const inviteCode = decodeURIComponent(localGroupMatch[2]);
         return { type: 'localGroup', groupId, inviteCode };
       }
-      const invitePattern = /\/invite\/([a-f0-9-]{36})\/([a-zA-Z0-9]+)/i;
+      const invitePattern = /\/invite\/([a-f0-9-]{36})\/([^/?#]+)/i;
       const match = trimmedLink.match(invitePattern);
 
       if (match) {
         const communityId = match[1];
-        const inviteCode = trimmedLink;
+        const inviteCode = decodeURIComponent(match[2]);
         return { type: 'community', communityId, inviteCode };
       }
 

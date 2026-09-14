@@ -467,7 +467,7 @@ const RoomSection = ({ title, open, onToggle, onAdd, channels, isVoice = false, 
           <div className="bg-white md:bg-black rounded-lg shadow-lg max-w-md w-full border md:border-gray-700 modal-content">
             <div className="px-6 py-4">
               <h3 className="text-lg font-semibold text-gray-900 md:text-white">
-                Voice Room: {voiceRoomModal.channelName}
+                Voice & Video Room: {voiceRoomModal.channelName}
               </h3>
             </div>
             <div className="px-6 py-4">
